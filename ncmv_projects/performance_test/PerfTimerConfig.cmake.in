@@ -1,0 +1,9 @@
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+
+include("${CMAKE_CURRENT_LIST_DIR}/PerfTimerTarget.cmake")
+
+set(PerfTimer_FOUND TRUE) 
+set(PerfTimer_INCLUDE_DIRS "/usr/local/include")
+set(PerfTimer_LIBRARY_DIRS "/usr/local/lib")
