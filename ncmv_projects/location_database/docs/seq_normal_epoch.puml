@@ -1,0 +1,106 @@
+@startuml seq_normal_epoch
+' ============================================================
+' Sequence Diagram 1 – Normal Write Epoch
+' Parser writes PVT + Satellite + IMU, then commits.
+' All three subscribers (nav, dr, telemetry) are notified.
+' ============================================================
+
+title Sequence 1: Normal Write Epoch\n(GNSS Parser → location_database → Subscribers)
+
+skinparam backgroundColor #FAFAFA
+skinparam sequenceArrowThickness 1.5
+skinparam sequenceArrowColor #2B6CB0
+skinparam sequenceParticipantBackgroundColor #2C5282
+skinparam sequenceParticipantFontColor #FFFFFF
+skinparam sequenceParticipantBorderColor #2C5282
+skinparam sequenceGroupBackgroundColor #EBF8FF
+skinparam sequenceGroupBorderColor #2B6CB0
+skinparam noteBackgroundColor #EBF8FF
+skinparam noteBorderColor #718096
+skinparam shadowing false
+
+participant "simulated_gnss_parser\n(writer thread)" as Parser
+participant "location_database" as DB
+participant "subscription_manager" as SubMgr
+participant "navigation_feature\n[mask: PVT bits]" as NavFeat
+participant "dr_feature\n[mask: PVT_SPEED +\nIMU bits]" as DrFeat
+participant "telemetry_feature\n[mask: PVT + SAT +\nIMU bits]" as TelFeat
+
+== Write Phase ==
+
+Parser -> DB : write_pvt(pvt_data)
+activate DB
+DB -> DB : assert_running()
+note right: unique_lock(m_data_mutex)
+DB -> DB : m_pvt = pvt
+DB -> DB : pvt_to_cache(m_field_cache, pvt)
+DB -> DB : m_epoch_mask |= k_pvt_mask\nm_avail_mask |= k_pvt_mask
+deactivate DB
+
+Parser -> DB : write_satellite_data(satellite_data)
+activate DB
+DB -> DB : assert_running()
+DB -> DB : m_sat = sat
+DB -> DB : sat_to_cache(m_field_cache, sat)
+DB -> DB : m_epoch_mask |= k_sat_mask\nm_avail_mask |= k_sat_mask
+deactivate DB
+
+Parser -> DB : write_imu_data(imu_data)
+activate DB
+DB -> DB : assert_running()
+DB -> DB : m_imu = imu
+DB -> DB : imu_to_cache(m_field_cache, imu)
+DB -> DB : m_epoch_mask |= k_imu_mask\nm_avail_mask |= k_imu_mask
+deactivate DB
+
+== Commit Phase ==
+
+Parser -> DB : commit_epoch()
+activate DB
+DB -> DB : assert_running()
+note right: unique_lock(m_data_mutex)\nsnapshot = m_epoch_mask\nm_last_epoch = m_epoch_mask\nm_epoch_mask.reset()\nrelease lock
+DB -> SubMgr : dispatch(snapshot_mask)
+activate SubMgr
+
+note over SubMgr: shared_lock(m_mutex)\nIterate m_registry
+
+SubMgr -> SubMgr : (nav_mask & snapshot) == nav_mask?\n→ YES (PVT bits all set)
+SubMgr -> NavFeat : on_fields_updated(snapshot_mask)
+activate NavFeat
+NavFeat -> DB : read_pvt()
+activate DB
+note right: shared_lock(m_data_mutex)
+DB --> NavFeat : pvt_data (copy)
+deactivate DB
+NavFeat -> NavFeat : log lat/lon/alt/speed/fix
+deactivate NavFeat
+
+SubMgr -> SubMgr : (dr_mask & snapshot) == dr_mask?\n→ YES (PVT_SPEED + IMU bits all set)
+SubMgr -> DrFeat : on_fields_updated(snapshot_mask)
+activate DrFeat
+DrFeat -> DB : read_imu_data()
+activate DB
+DB --> DrFeat : imu_data (copy)
+deactivate DB
+DrFeat -> DrFeat : log accel/gyro/temp
+deactivate DrFeat
+
+SubMgr -> SubMgr : (tel_mask & snapshot) == tel_mask?\n→ YES (PVT + SAT + IMU bits all set)
+SubMgr -> TelFeat : on_fields_updated(snapshot_mask)
+activate TelFeat
+TelFeat -> DB : read_satellite_data()
+activate DB
+DB --> TelFeat : satellite_data (copy)
+deactivate DB
+TelFeat -> TelFeat : log sats/cno
+deactivate TelFeat
+
+deactivate SubMgr
+deactivate DB
+
+note over Parser, TelFeat
+  All three subscribers satisfied in this epoch.
+  Epoch mask covers PVT + SAT + IMU field groups.
+end note
+
+@enduml

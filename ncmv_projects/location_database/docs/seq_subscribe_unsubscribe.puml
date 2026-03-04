@@ -1,0 +1,147 @@
+@startuml seq_subscribe_unsubscribe
+' ============================================================
+' Sequence Diagram 3 – Subscribe / Partial Epoch / Unsubscribe
+' Shows:
+'  - Subscription registration with different field masks
+'  - A partial epoch (only PVT written → telemetry NOT notified)
+'  - Unsubscribe removing a subscriber mid-run
+' ============================================================
+
+title Sequence 3: Subscribe, Partial Epoch & Unsubscribe
+
+skinparam backgroundColor #FAFAFA
+skinparam sequenceArrowThickness 1.5
+skinparam sequenceArrowColor #2B6CB0
+skinparam sequenceParticipantBackgroundColor #2C5282
+skinparam sequenceParticipantFontColor #FFFFFF
+skinparam sequenceParticipantBorderColor #2C5282
+skinparam sequenceGroupBackgroundColor #EBF8FF
+skinparam sequenceGroupBorderColor #2B6CB0
+skinparam noteBackgroundColor #EBF8FF
+skinparam noteBorderColor #718096
+skinparam shadowing false
+
+participant "main" as Main
+participant "location_database" as DB
+participant "subscription_manager" as SubMgr
+participant "navigation_feature\n[mask: PVT bits only]" as NavFeat
+participant "telemetry_feature\n[mask: PVT+SAT+IMU bits]" as TelFeat
+
+== Registration ==
+
+Main -> DB : subscribe(&nav_feature, pvt_mask)
+activate DB
+DB -> SubMgr : subscribe(&nav_feature, pvt_mask)
+activate SubMgr
+SubMgr -> SubMgr : token = m_next_token++ (= 1)\nm_registry[1] = {&nav_feature, pvt_mask}
+SubMgr --> DB : token = 1
+deactivate SubMgr
+DB --> Main : nav_token = 1
+deactivate DB
+
+Main -> DB : subscribe(&tel_feature, tel_mask)
+activate DB
+DB -> SubMgr : subscribe(&tel_feature, tel_mask)
+activate SubMgr
+SubMgr -> SubMgr : token = m_next_token++ (= 2)\nm_registry[2] = {&tel_feature, tel_mask}
+SubMgr --> DB : token = 2
+deactivate SubMgr
+DB --> Main : tel_token = 2
+deactivate DB
+
+note over SubMgr
+  Registry now contains 2 entries:
+  1 → nav_feature  (PVT bits)
+  2 → tel_feature  (PVT+SAT+IMU bits)
+end note
+
+== Partial Epoch (PVT only – telemetry NOT satisfied) ==
+
+Main -> DB : write_pvt(pvt_data)
+activate DB
+DB -> DB : m_epoch_mask |= k_pvt_mask
+deactivate DB
+
+Main -> DB : commit_epoch()
+activate DB
+DB -> DB : snapshot = m_epoch_mask [PVT only]
+DB -> DB : m_epoch_mask.reset()
+DB -> SubMgr : dispatch(snapshot [PVT only])
+activate SubMgr
+
+SubMgr -> SubMgr : Check nav: (pvt_mask & snapshot)==pvt_mask?\n→ YES – PVT bits all covered
+SubMgr -> NavFeat : on_fields_updated(snapshot)
+activate NavFeat
+NavFeat -> NavFeat : reads pvt, logs position
+deactivate NavFeat
+
+SubMgr -> SubMgr : Check tel: (tel_mask & snapshot)==tel_mask?\n→ NO – SAT and IMU bits missing
+
+note over TelFeat #FFEEEE
+  telemetry_feature is NOT called.
+  Its mask requires SAT+IMU which
+  were NOT written this epoch.
+end note
+
+deactivate SubMgr
+deactivate DB
+
+== Full Epoch (PVT + SAT + IMU – both satisfied) ==
+
+Main -> DB : write_pvt(pvt) + write_satellite_data(sat)\n+ write_imu_data(imu)
+activate DB
+DB -> DB : m_epoch_mask |= k_pvt_mask | k_sat_mask | k_imu_mask
+deactivate DB
+
+Main -> DB : commit_epoch()
+activate DB
+DB -> SubMgr : dispatch(snapshot [PVT+SAT+IMU])
+activate SubMgr
+
+SubMgr -> NavFeat : on_fields_updated(snapshot)
+activate NavFeat
+NavFeat -> NavFeat : logs position
+deactivate NavFeat
+
+SubMgr -> TelFeat : on_fields_updated(snapshot)
+activate TelFeat
+TelFeat -> TelFeat : logs satellites + IMU
+deactivate TelFeat
+
+deactivate SubMgr
+deactivate DB
+
+== Unsubscribe ==
+
+Main -> DB : unsubscribe(nav_token = 1)
+activate DB
+DB -> SubMgr : unsubscribe(1)
+activate SubMgr
+SubMgr -> SubMgr : m_registry.erase(1)
+note right: unique_lock(m_mutex)\nO(1) hash-map erase
+deactivate SubMgr
+deactivate DB
+
+== Next Epoch (only telemetry remains) ==
+
+Main -> DB : write_pvt(pvt) + write_satellite_data(sat)\n+ write_imu_data(imu) + commit_epoch()
+activate DB
+DB -> SubMgr : dispatch(snapshot)
+activate SubMgr
+
+SubMgr -> SubMgr : m_registry only has token 2
+
+SubMgr -> TelFeat : on_fields_updated(snapshot)
+activate TelFeat
+TelFeat -> TelFeat : logs satellites + IMU
+deactivate TelFeat
+
+deactivate SubMgr
+deactivate DB
+
+note over Main, TelFeat
+  nav_feature no longer receives callbacks
+  after unsubscribe(nav_token).
+end note
+
+@enduml

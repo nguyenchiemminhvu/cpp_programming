@@ -1,0 +1,365 @@
+@startuml class_diagram
+' ============================================================
+' Location Manager Database – Class Diagram
+' ============================================================
+
+title Location Manager Database\nClass Diagram
+
+skinparam backgroundColor #FAFAFA
+skinparam classBackgroundColor #FFFFFF
+skinparam classBorderColor #555555
+skinparam classHeaderBackgroundColor #2C5282
+skinparam classFontColor #FFFFFF
+skinparam classHeaderFontColor #FFFFFF
+skinparam arrowColor #2B6CB0
+skinparam arrowThickness 1.5
+skinparam noteBorderColor #718096
+skinparam noteBackgroundColor #EBF8FF
+skinparam shadowing false
+skinparam linetype ortho
+
+' ============================================================
+' Namespace: locmgr::db
+' ============================================================
+
+package "locmgr::db" {
+
+    ' ----------------------------------------------------------
+    ' Data Layer
+    ' ----------------------------------------------------------
+
+    package "Data Layer" <<Rectangle>> #EBF8FF {
+
+        enum field_id <<enum class : size_t>> {
+            PVT_LATITUDE = 0
+            PVT_LONGITUDE = 1
+            PVT_ALTITUDE_MSL = 2
+            PVT_ALTITUDE_HAE = 3
+            PVT_HEADING_MOTION = 4
+            PVT_HEADING_VEHICLE = 5
+            PVT_SPEED = 6
+            PVT_HORIZONTAL_ACC = 7
+            PVT_VERTICAL_ACC = 8
+            PVT_SPEED_ACC = 9
+            PVT_HEADING_ACC = 10
+            PVT_TIMESTAMP_UTC = 11
+            PVT_FIX_TYPE = 12
+            PVT_FIX_FLAGS = 13
+            PVT_NUM_SV = 14
+            PVT_PDOP = 15
+            PVT_HDOP = 16
+            PVT_VDOP = 17
+            SAT_COUNT = 18
+            SAT_USED_IN_FIX = 19
+            SAT_AVG_CN0 = 20
+            SAT_MAX_CN0 = 21
+            SAT_CONSTELLATION_MASK = 22
+            IMU_ACCEL_X = 23
+            IMU_ACCEL_Y = 24
+            IMU_ACCEL_Z = 25
+            IMU_GYRO_X = 26
+            IMU_GYRO_Y = 27
+            IMU_GYRO_Z = 28
+            IMU_TEMPERATURE = 29
+            IMU_CALIBRATION_STATUS = 30
+            DR_POSITION_VALID = 31
+            DR_SPEED = 32
+            DR_HEADING = 33
+            FIELD_COUNT = 34
+        }
+
+        class field_mask <<typedef>> {
+            std::bitset<34>
+            ..utility functions..
+            {static} +set_field(mask, id) : field_mask&
+            {static} +clear_field(mask, id) : field_mask&
+            {static} +has_field(mask, id) : bool
+            {static} +make_field_mask(ids) : field_mask
+            {static} +field_name(id) : string
+        }
+
+        struct satellite_info {
+            +sv_id : uint8_t
+            +gnss_id : uint8_t
+            +elevation : int8_t
+            +azimuth : int16_t
+            +cno : float
+            +used_in_fix : bool
+            +ephemeris_valid : bool
+            +alm_valid : bool
+            +health_ok : bool
+        }
+
+        struct pvt_data {
+            +latitude : double
+            +longitude : double
+            +altitude_msl : double
+            +altitude_hae : double
+            +heading_motion : double
+            +heading_vehicle : double
+            +speed : double
+            +horizontal_acc : double
+            +vertical_acc : double
+            +speed_acc : double
+            +heading_acc : double
+            +timestamp_utc_ms : int64_t
+            +fix_type : uint8_t
+            +fix_flags : uint8_t
+            +num_sv_used : uint8_t
+            +pdop : float
+            +hdop : float
+            +vdop : float
+            +is_valid() : bool
+        }
+
+        struct satellite_data {
+            +total_count : uint8_t
+            +used_in_fix : uint8_t
+            +avg_cno : float
+            +max_cno : float
+            +constellation_mask : uint8_t
+            +satellites : vector<satellite_info>
+            +clear() : void
+        }
+
+        struct imu_data {
+            +accel_x : double
+            +accel_y : double
+            +accel_z : double
+            +gyro_x : double
+            +gyro_y : double
+            +gyro_z : double
+            +temperature : float
+            +calib_status : uint8_t
+            +is_calibrated() : bool
+        }
+
+        struct dr_data {
+            +position_valid : bool
+            +speed : double
+            +heading : double
+        }
+
+        satellite_data "1" *-- "0..*" satellite_info : contains >
+    }
+
+    ' ----------------------------------------------------------
+    ' Interface Layer
+    ' ----------------------------------------------------------
+
+    package "Interface Layer (ISP)" <<Rectangle>> #FFF5F5 {
+
+        abstract class i_field_update_listener <<interface>> {
+            +{abstract} on_fields_updated(updated_mask : const field_mask&) : void
+            +{abstract} ~i_field_update_listener()
+        }
+
+        abstract class i_location_database_writer <<interface>> {
+            +{abstract} write_pvt(pvt : const pvt_data&) : void
+            +{abstract} write_satellite_data(sat : const satellite_data&) : void
+            +{abstract} write_imu_data(imu : const imu_data&) : void
+            +{abstract} write_dr_data(dr : const dr_data&) : void
+            +{abstract} write_field(id : field_id, value : double) : void
+            +{abstract} commit_epoch() : void
+            +{abstract} ~i_location_database_writer()
+        }
+
+        abstract class i_location_database_reader <<interface>> {
+            +{abstract} read_pvt() : pvt_data
+            +{abstract} read_satellite_data() : satellite_data
+            +{abstract} read_imu_data() : imu_data
+            +{abstract} read_dr_data() : dr_data
+            +{abstract} read_field(id : field_id, value : double&) : bool
+            +{abstract} subscribe(listener, mask) : uint64_t
+            +{abstract} unsubscribe(token : uint64_t) : void
+            +{abstract} get_available_mask() : field_mask
+            +{abstract} get_last_epoch_mask() : field_mask
+            +{abstract} ~i_location_database_reader()
+        }
+
+        abstract class i_location_database_control <<interface>> {
+            +{abstract} start() : bool
+            +{abstract} stop() : void
+            +{abstract} reset() : void
+            +{abstract} get_state_name() : string
+            +{abstract} ~i_location_database_control()
+        }
+
+        abstract class i_location_database <<interface>> {
+            +{abstract} ~i_location_database()
+        }
+
+        i_location_database --|> i_location_database_writer : extends
+        i_location_database --|> i_location_database_reader : extends
+        i_location_database --|> i_location_database_control : extends
+    }
+
+    ' ----------------------------------------------------------
+    ' Core Implementation Layer
+    ' ----------------------------------------------------------
+
+    package "Implementation Layer" <<Rectangle>> #F0FFF4 {
+
+        enum database_state <<enum class>> {
+            uninitialized
+            running
+            stopped
+        }
+
+        class subscription_manager <<final>> {
+            -{static} k_invalid_token : uint64_t = 0
+            -m_mutex : shared_mutex
+            -m_registry : unordered_map<uint64_t, registration>
+            -m_next_token : atomic<uint64_t>
+            --
+            +subscribe(listener, mask) : uint64_t
+            +unsubscribe(token : uint64_t) : void
+            +dispatch(epoch_mask : const field_mask&) : void
+            +subscriber_count() : size_t
+        }
+
+        class "registration" as registration <<struct>> {
+            +listener : i_field_update_listener*
+            +mask : field_mask
+        }
+
+        class location_database <<final>> {
+            -m_data_mutex : shared_mutex
+            -m_state_mutex : mutex
+            -m_state : database_state
+            -m_pvt : pvt_data
+            -m_sat : satellite_data
+            -m_imu : imu_data
+            -m_dr : dr_data
+            -m_field_cache[34] : double
+            -m_field_valid[34] : bool
+            -m_epoch_mask : field_mask
+            -m_avail_mask : field_mask
+            -m_last_epoch : field_mask
+            -m_subsc_mgr : subscription_manager
+            ==
+            +location_database()
+            +~location_database()
+            ..i_location_database_control..
+            +start() : bool
+            +stop() : void
+            +reset() : void
+            +get_state_name() : string
+            ..i_location_database_writer..
+            +write_pvt(pvt) : void
+            +write_satellite_data(sat) : void
+            +write_imu_data(imu) : void
+            +write_dr_data(dr) : void
+            +write_field(id, value) : void
+            +commit_epoch() : void
+            ..i_location_database_reader..
+            +read_pvt() : pvt_data
+            +read_satellite_data() : satellite_data
+            +read_imu_data() : imu_data
+            +read_dr_data() : dr_data
+            +read_field(id, value&) : bool
+            +subscribe(listener, mask) : uint64_t
+            +unsubscribe(token) : void
+            +get_available_mask() : field_mask
+            +get_last_epoch_mask() : field_mask
+            ..private helpers..
+            -assert_running(caller) : void
+            -mark_fields(bits) : void
+        }
+
+        subscription_manager *-- registration : owns >
+        location_database --|> i_location_database : implements
+        location_database *-- subscription_manager : contains >
+        location_database *-- database_state : has state >
+        location_database *-- pvt_data : stores >
+        location_database *-- satellite_data : stores >
+        location_database *-- imu_data : stores >
+        location_database *-- dr_data : stores >
+    }
+
+    ' ----------------------------------------------------------
+    ' Client Layer (demo participants)
+    ' ----------------------------------------------------------
+
+    package "Client Layer (demo)" <<Rectangle>> #FFFFF0 {
+
+        class navigation_feature {
+            -m_db : i_location_database_reader&
+            -m_callback_count : atomic<int>
+            +on_fields_updated(updated_mask) : void
+            +callback_count() : int
+        }
+
+        class dr_feature {
+            -m_db : i_location_database_reader&
+            -m_callback_count : atomic<int>
+            +on_fields_updated(updated_mask) : void
+            +callback_count() : int
+        }
+
+        class telemetry_feature {
+            -m_db : i_location_database_reader&
+            -m_callback_count : atomic<int>
+            +on_fields_updated(updated_mask) : void
+            +callback_count() : int
+        }
+
+        class simulated_gnss_parser {
+            -m_writer : i_location_database_writer&
+            -m_epoch_count : int
+            +run() : void
+        }
+
+        navigation_feature --|> i_field_update_listener : implements
+        dr_feature --|> i_field_update_listener : implements
+        telemetry_feature --|> i_field_update_listener : implements
+
+        navigation_feature ..> i_location_database_reader : uses (read_pvt) >
+        dr_feature ..> i_location_database_reader : uses (read_imu_data) >
+        telemetry_feature ..> i_location_database_reader : uses (read_satellite_data) >
+        simulated_gnss_parser ..> i_location_database_writer : uses (write/commit) >
+    }
+
+    ' ----------------------------------------------------------
+    ' Cross-package dependencies
+    ' ----------------------------------------------------------
+    field_mask ..> field_id : uses >
+    subscription_manager ..> i_field_update_listener : invokes callback >
+    subscription_manager ..> field_mask : uses >
+}
+
+' ----------------------------------------------------------
+' Notes
+' ----------------------------------------------------------
+
+note top of i_location_database
+  <b>Interface Segregation Principle</b>
+  Composes three role-specific interfaces.
+  Each caller receives only the surface it needs.
+end note
+
+note right of subscription_manager
+  <b>Thread-safety</b>
+  subscribe/unsubscribe: unique_lock
+  dispatch: shared_lock
+  Listeners called outside data mutex
+  to prevent deadlock.
+end note
+
+note bottom of location_database
+  <b>Epoch-Commit Write Model</b>
+  Fields accumulate in m_epoch_mask.
+  commit_epoch() snapshots mask,
+  clears it, then dispatches notifications.
+  Prevents partial-data callbacks.
+end note
+
+note left of database_state
+  <b>Lifecycle State Machine</b>
+  uninitialized
+     --start()-->  running
+     --stop() -->  stopped
+     <--reset()--  stopped
+end note
+
+@enduml
