@@ -1,3 +1,6 @@
 [submodule "ncmv_projects/SafePodCasting"]
 	path = ncmv_projects/SafePodCasting
 	url = git@github.com:nguyenchiemminhvu/SafePodCasting.git
+[submodule "ncmv_projects/LibEventCpp"]
+	path = ncmv_projects/LibEventCpp
+	url = git@github.com:nguyenchiemminhvu/LibEventCpp.git
