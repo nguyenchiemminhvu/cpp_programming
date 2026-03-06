@@ -1,0 +1,3 @@
+[submodule "ncmv_projects/SafePodCasting"]
+	path = ncmv_projects/SafePodCasting
+	url = git@github.com:nguyenchiemminhvu/SafePodCasting.git
