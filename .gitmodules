@@ -7,3 +7,6 @@
 [submodule "ncmv_projects/LibThreadPool"]
 	path = ncmv_projects/LibThreadPool
 	url = git@github.com:nguyenchiemminhvu/LibThreadPool.git
+[submodule "ncmv_projects/vsomeip_examples"]
+	path = ncmv_projects/vsomeip_examples
+	url = git@github.com:nguyenchiemminhvu/vsomeip_examples.git
