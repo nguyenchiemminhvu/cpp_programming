@@ -4,3 +4,6 @@
 [submodule "ncmv_projects/LibEventCpp"]
 	path = ncmv_projects/LibEventCpp
 	url = git@github.com:nguyenchiemminhvu/LibEventCpp.git
+[submodule "ncmv_projects/LibThreadPool"]
+	path = ncmv_projects/LibThreadPool
+	url = git@github.com:nguyenchiemminhvu/LibThreadPool.git
