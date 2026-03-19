@@ -16,3 +16,9 @@
 [submodule "ncmv_projects/serial_helper"]
 	path = ncmv_projects/serial_helper
 	url = git@github.com:nguyenchiemminhvu/serial_helper.git
+[submodule "ncmv_projects/nmea_parser"]
+	path = ncmv_projects/nmea_parser
+	url = git@github.com:nguyenchiemminhvu/nmea_parser.git
+[submodule "ncmv_projects/ubx_parser"]
+	path = ncmv_projects/ubx_parser
+	url = git@github.com:nguyenchiemminhvu/ubx_parser.git
