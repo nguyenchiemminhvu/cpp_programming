@@ -22,3 +22,6 @@
 [submodule "ncmv_projects/ubx_parser"]
 	path = ncmv_projects/ubx_parser
 	url = git@github.com:nguyenchiemminhvu/ubx_parser.git
+[submodule "ncmv_projects/ini_parser"]
+	path = ncmv_projects/ini_parser
+	url = git@github.com:nguyenchiemminhvu/ini_parser.git
