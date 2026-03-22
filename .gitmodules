@@ -25,3 +25,6 @@
 [submodule "ncmv_projects/ini_parser"]
 	path = ncmv_projects/ini_parser
 	url = git@github.com:nguyenchiemminhvu/ini_parser.git
+[submodule "ncmv_projects/gnss_wrapper"]
+	path = ncmv_projects/gnss_wrapper
+	url = git@github.com:nguyenchiemminhvu/gnss_wrapper.git
