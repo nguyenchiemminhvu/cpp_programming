@@ -25,3 +25,6 @@
 [submodule "ncmv_projects/gnss_wrapper"]
 	path = ncmv_projects/gnss_wrapper
 	url = git@github.com:nguyenchiemminhvu/gnss_wrapper.git
+[submodule "ncmv_projects/gnss_io_helper"]
+	path = ncmv_projects/gnss_io_helper
+	url = git@github.com:nguyenchiemminhvu/gnss_io_helper.git
