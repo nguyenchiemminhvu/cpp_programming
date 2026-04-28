@@ -28,3 +28,6 @@
 [submodule "ncmv_projects/gnss_io_helper"]
 	path = ncmv_projects/gnss_io_helper
 	url = git@github.com:nguyenchiemminhvu/gnss_io_helper.git
+[submodule "study/large_scale_cpp_process_and_architecture_vol_1"]
+	path = study/large_scale_cpp_process_and_architecture_vol_1
+	url = git@github.com:nguyenchiemminhvu/large_scale_cpp_process_and_architecture_vol_1.git
