@@ -1,0 +1,11 @@
+# ── C++17 › Core Language Features ────────────────────────────────────────────
+add_subdirectory(structured_bindings)
+add_subdirectory(if_constexpr)
+add_subdirectory(inline_variables)
+add_subdirectory(fold_expressions)
+add_subdirectory(ctad)
+add_subdirectory(if_init_statement)
+add_subdirectory(nodiscard_attribute)
+add_subdirectory(guaranteed_copy_elision)
+add_subdirectory(evaluation_order)
+add_subdirectory(nested_namespace)
