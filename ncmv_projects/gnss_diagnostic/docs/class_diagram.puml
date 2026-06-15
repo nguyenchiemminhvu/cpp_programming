@@ -1,0 +1,110 @@
+@startuml gnss_diagnostic_class_diagram
+title GNSS Diagnostic Module — Class Diagram
+
+skinparam classAttributeIconSize 0
+hide empty members
+
+package "external" {
+    interface i_dtc_service {
+        +set_dtc(code)
+        +clear_dtc(code)
+    }
+    interface i_health_service {
+        +request_platform_reboot(reason)
+    }
+    interface i_chip_controller {
+        +reset_chip() : bool
+    }
+    interface i_gnss_event_source {
+        +subscribe(listener)
+        +unsubscribe(listener)
+    }
+    interface i_clock {
+        +now() : time_point
+    }
+}
+
+package "events" {
+    class pvt_event
+    class antenna_event
+    enum  antenna_status
+    enum  power_mode
+
+    interface i_gnss_event_listener {
+        +on_pvt(ev)
+        +on_antenna(ev)
+    }
+}
+
+package "monitoring" {
+    interface i_dtc_observer {
+        +on_dtc_set(code)
+        +on_dtc_cleared(code)
+    }
+    interface i_dtc_monitor {
+        +dtc_code() : uint32_t
+        +is_active() : bool
+        +evaluate(now)
+        +pause() / resume(now) / reset()
+        +set_observer(o)
+    }
+    abstract class dtc_monitor_base {
+        #condition_currently_failing(now) : bool
+    }
+    class pvt_timeout_monitor
+    class antenna_short_monitor
+    class antenna_open_monitor
+
+    class dtc_config <<value>>
+}
+
+package "recovery" {
+    enum recovery_level
+    interface i_recovery_action {
+        +level() : recovery_level
+        +execute(triggering_dtc) : bool
+    }
+    class chip_reset_action
+    class platform_reboot_action
+    class recovery_manager
+    class recovery_config <<value>>
+}
+
+package "facade" {
+    class gnss_diagnostic_manager
+    class power_mode_controller
+}
+
+' ------------- relationships -------------
+
+i_gnss_event_listener <|.. i_dtc_monitor
+i_dtc_monitor         <|.. dtc_monitor_base
+dtc_monitor_base      <|-- pvt_timeout_monitor
+dtc_monitor_base      <|-- antenna_short_monitor
+dtc_monitor_base      <|-- antenna_open_monitor
+
+dtc_monitor_base      o-- dtc_config
+dtc_monitor_base      ..> i_dtc_service     : uses
+dtc_monitor_base      ..> i_clock           : uses
+dtc_monitor_base      ..> i_dtc_observer    : notifies
+
+i_recovery_action     <|.. chip_reset_action
+i_recovery_action     <|.. platform_reboot_action
+
+chip_reset_action     ..> i_chip_controller : uses
+platform_reboot_action ..> i_health_service : uses
+
+recovery_manager      ..|> i_dtc_observer
+recovery_manager      o-- "0..*" i_recovery_action
+recovery_manager      o-- recovery_config
+recovery_manager      ..> i_clock           : uses
+
+i_gnss_event_listener <|.. gnss_diagnostic_manager
+gnss_diagnostic_manager o-- "0..*" i_dtc_monitor
+gnss_diagnostic_manager o-- recovery_manager
+gnss_diagnostic_manager ..> i_gnss_event_source : subscribes
+gnss_diagnostic_manager ..> i_clock           : uses
+
+power_mode_controller ..> gnss_diagnostic_manager : pause/resume
+
+@enduml

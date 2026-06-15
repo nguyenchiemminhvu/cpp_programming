@@ -1,0 +1,34 @@
+@startuml gnss_diagnostic_seq_recovery
+title 2. Recovery escalation (DTC persists)
+
+participant "gnss_diagnostic_manager" as MGR
+participant "recovery_manager"        as REC
+participant "chip_reset_action"       as L1
+participant "platform_reboot_action"  as L2
+participant "i_chip_controller"       as CHIP
+participant "i_health_service"        as HEALTH
+
+== Level 1 escalation ==
+loop every 100 ms tick
+    MGR -> REC : evaluate(now)
+end
+note right of REC : (now - armed_at) >= level1_timeout
+REC -> L1 : execute(triggering_dtc)
+L1  -> CHIP : reset_chip()
+note right of REC : state: armed -> level1_done\nlevel1_at = now
+
+== still failing ==
+loop every 100 ms tick
+    MGR -> REC : evaluate(now)
+end
+
+== Level 2 escalation ==
+note right of REC : (now - level1_at) >= level2_timeout
+REC -> L2 : execute(triggering_dtc)
+L2  -> HEALTH : request_platform_reboot(reason)
+note right of REC : state: level1_done -> terminal\nNo further recovery until cold restart
+
+== still failing, still ticking ==
+MGR -> REC : evaluate(now)
+note right of REC : terminal -> ignore
+@enduml

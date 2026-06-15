@@ -1,0 +1,35 @@
+@startuml gnss_diagnostic_seq_normal
+title 1. Normal operation -> DTC triggered (PVT stream stalls for 5s)
+
+actor "GNSS HW Adapter" as HW
+participant "gnss_diagnostic_manager" as MGR
+participant "pvt_timeout_monitor"     as MON
+participant "i_dtc_service"           as DTC
+participant "recovery_manager"        as REC
+
+== healthy stream ==
+loop every 100 ms
+    HW   -> MGR : on_pvt(ev)
+    MGR  -> MON : on_pvt(ev)        ' updates last_pvt_ts
+    MGR  -> MON : evaluate(now)
+    note right of MON : failing = false\nok_run reset
+end
+
+== stream stalls ==
+HW   -> MGR : (no PVT for 5 s)
+loop every 100 ms tick
+    MGR -> MON : evaluate(now)
+    note right of MON
+      failing = (now - last_pvt_ts) > freshness_threshold
+      fail_run started, accumulating
+    end note
+end
+
+== trigger fires ==
+MGR -> MON : evaluate(now)
+note right of MON : (now - fail_started) >= 5 s
+MON -> DTC : set_dtc(pvt_stream_timeout)
+MON -> REC : on_dtc_set(pvt_stream_timeout)
+note right of REC : state: idle -> armed\narmed_at = now
+
+@enduml

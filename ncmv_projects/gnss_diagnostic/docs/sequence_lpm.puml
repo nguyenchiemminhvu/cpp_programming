@@ -1,0 +1,33 @@
+@startuml gnss_diagnostic_seq_lpm
+title 3. Low Power Mode entry / exit
+
+actor "Power Mgmt" as PM
+participant "power_mode_controller"   as PMC
+participant "gnss_diagnostic_manager" as MGR
+participant "i_dtc_monitor"           as MON
+participant "recovery_manager"        as REC
+
+== Entering LPM ==
+PM  -> PMC : notify(low_power)
+PMC -> MGR : pause()
+MGR -> MON : pause()
+note right of MON : freezes debounce timers,\nignores subsequent on_pvt/on_antenna
+MGR -> REC : pause()
+note right of REC : freezes escalation timers
+
+== While in LPM ==
+note over MGR
+  on_tick() short-circuits.
+  No DTCs are set or cleared while paused.
+  Chip is OFF; no events arrive.
+end note
+
+== Exiting LPM ==
+PM  -> PMC : notify(active)
+PMC -> MGR : resume()
+MGR -> MON : resume(now)
+note right of MON : fail_run / ok_run cleared\nso debounce restarts cleanly
+MGR -> REC : resume(now)
+note right of REC : armed_at / level1_at = now\n(LPM time does not count)
+
+@enduml
