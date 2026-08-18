@@ -3,6 +3,15 @@
 #include <variant>
 #include <cstdint>
 
+template <typename... Handlers>
+struct Overloaded : Handlers...
+{
+    using Handlers::operator()...;
+};
+
+template <typename... Handlers>
+Overloaded(Handlers...) -> Overloaded<Handlers...>;
+
 struct can_bus_frame
 {
     uint32_t id;
@@ -45,7 +54,63 @@ public:
             std::cerr << "Unknown event type!" << std::endl;
         }
     }
+
+    void route_overloaded(const ecu_event& event) noexcept
+    {
+        std::visit([](const auto& e) {
+            Overloaded{
+                [](const can_bus_frame& can) {
+                    std::cout << "Routing CAN bus frame with ID: " << can.id << std::endl;
+                },
+                [](const lin_bus_frame& lin) {
+                    std::cout << "Routing LIN bus frame with ID: " << static_cast<int>(lin.id) << std::endl;
+                },
+                [](const diag_message& diag) {
+                    std::cout << "Routing diagnostic message with ID: " << static_cast<int>(diag.id) << std::endl;
+                }
+            }(e);
+        }, event);
+    }
 };
+
+namespace ecu
+{
+    struct normal_state
+    {
+        int temperature;
+    };
+
+    struct high_load_state
+    {
+        int load_percentage;
+    };
+
+    struct error_state
+    {
+        int error_code;
+    };
+
+    using ecu_state = std::variant<normal_state, high_load_state, error_state>;
+
+    void report_state(const ecu_state& state) noexcept
+    {
+        std::visit([](const auto& state) {
+            using T = std::decay_t<decltype(state)>;
+            if constexpr (std::is_same_v<T, normal_state>)
+            {
+                std::cout << "ECU is in normal state with temperature: " << state.temperature << std::endl;
+            }
+            else if constexpr (std::is_same_v<T, high_load_state>)
+            {
+                std::cout << "ECU is in high load state with load percentage: " << state.load_percentage << std::endl;
+            }
+            else if constexpr (std::is_same_v<T, error_state>)
+            {
+                std::cout << "ECU is in error state with error code: " << state.error_code << std::endl;
+            }
+        }, state);
+    }
+}
 
 int main()
 {
@@ -78,6 +143,19 @@ int main()
     router.route(can_frame);
     router.route(lin_frame);
     router.route(diag_msg);
+
+    router.route_overloaded(can_frame);
+    router.route_overloaded(lin_frame);
+    router.route_overloaded(diag_msg);
+
+    ecu::ecu_state state = ecu::normal_state{75};
+    ecu::report_state(state);
+
+    ecu::ecu_state high_load = ecu::high_load_state{90};
+    ecu::report_state(high_load);
+
+    ecu::ecu_state error = ecu::error_state{404};
+    ecu::report_state(error);
 
     return 0;
 }
