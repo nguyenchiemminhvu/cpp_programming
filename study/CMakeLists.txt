@@ -25,3 +25,6 @@ add_subdirectory(cpp20)
 # ── Cross-Standard Advanced Topics ─────────────────────────────────────────────
 add_subdirectory(advanced)
 add_subdirectory(patterns)
+
+# ── Safety-Critical Programming ───────────────────────────────────────────────
+add_subdirectory(safety_critical_programming)
