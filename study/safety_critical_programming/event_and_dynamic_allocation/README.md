@@ -1,4 +1,4 @@
-# Event-Driven Callback Dispatch — Design Note
+# Event-Driven Callback Dispatch
 
 *A short architecture note for a CAN signal dispatcher inside an automotive ECU, with a walk-through of the reference implementation in this folder.*
 
@@ -17,7 +17,7 @@ Every design decision below is a direct consequence of those two rules.
 
 ---
 
-## 2. The two designs in this folder
+## 2. The two designs
 
 | File | What it shows |
 |---|---|
@@ -53,7 +53,7 @@ cmake --build build --target safety_event_and_dynamic_allocation
 
 ---
 
-## 4. The preferred design, piece by piece
+## 4. The preferred design
 
 `preferred_design.h` is not exotic — it is just the observer pattern with the two rules from Section 1 taken seriously. Four types, each with a clear job.
 
