@@ -7,10 +7,15 @@
 #include <new>       // placement new
 #include <cassert>
 
-template <typename T, std::size_t StorageSize = 64, std::size_t StorageAlignment = alignof(std::max_align_t)>
+template <typename T,
+          std::size_t StorageSize = 64,
+          std::size_t StorageAlignment = alignof(std::max_align_t)>
 class inplace_function;
 
-template <typename R, typename... Args, std::size_t StorageSize, std::size_t StorageAlignment>
+template <typename R,
+          typename... Args,
+          std::size_t StorageSize,
+          std::size_t StorageAlignment>
 class inplace_function<R(Args...), StorageSize, StorageAlignment>
 {
 public:
@@ -71,6 +76,52 @@ public:
         {
             this->move_ptr_(this->storage_, other.storage_);
         }
+
+        // move_ptr_ already destroyed other's object; empty it so its destructor is a no-op.
+        other.reset_pointers();
+    }
+
+    inplace_function& operator=(const inplace_function& other)
+    {
+        if (this != &other)
+        {
+            if (this->destroy_ptr_)
+            {
+                this->destroy_ptr_(this->storage_);
+            }
+            this->invoke_ptr_ = other.invoke_ptr_;
+            this->destroy_ptr_ = other.destroy_ptr_;
+            this->copy_ptr_ = other.copy_ptr_;
+            this->move_ptr_ = other.move_ptr_;
+            if (this->copy_ptr_)
+            {
+                this->copy_ptr_(this->storage_, other.storage_);
+            }
+        }
+        return *this;
+    }
+
+    inplace_function& operator=(inplace_function&& other) noexcept
+    {
+        if (this != &other)
+        {
+            if (this->destroy_ptr_)
+            {
+                this->destroy_ptr_(this->storage_);
+            }
+            this->invoke_ptr_ = other.invoke_ptr_;
+            this->destroy_ptr_ = other.destroy_ptr_;
+            this->copy_ptr_ = other.copy_ptr_;
+            this->move_ptr_ = other.move_ptr_;
+            if (this->move_ptr_)
+            {
+                this->move_ptr_(this->storage_, other.storage_);
+            }
+
+            // move_ptr_ already destroyed other's object; empty it so its destructor is a no-op.
+            other.reset_pointers();
+        }
+        return *this;
     }
 
     ~inplace_function()
@@ -96,6 +147,14 @@ public:
     }
 
 private:
+    void reset_pointers() noexcept
+    {
+        invoke_ptr_ = nullptr;
+        destroy_ptr_ = nullptr;
+        copy_ptr_ = nullptr;
+        move_ptr_ = nullptr;
+    }
+
     alignas(StorageAlignment) uint8_t storage_[StorageSize];
     
     invoke_ptr_t invoke_ptr_ = nullptr;
