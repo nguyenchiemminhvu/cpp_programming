@@ -77,6 +77,59 @@ void print_decay_type(T&& arg)
     }
 }
 
+template <typename T>
+void print_copyable(T&& arg)
+{
+    std::cout << "Is trivially copyable? " << std::is_trivially_copyable<typename std::decay<T>::type>::value << "\n";
+}
+
+struct can_copy
+{
+    can_copy() = default;
+    can_copy(const can_copy&) = default;
+    can_copy& operator=(const can_copy&) = default;
+
+    unsigned char bytes[16];
+};
+
+struct cannot_copy
+{
+    cannot_copy() = default;
+    cannot_copy(const cannot_copy&) = delete;
+    cannot_copy& operator=(const cannot_copy&) = delete;
+
+    std::string s; // because it has dynamic size
+    unsigned char* bytes_ptr;
+};
+
+template <typename T>
+void smart_copy(const T* src, T* dst, std::size_t count)
+{
+    if constexpr (std::is_trivially_copyable<T>::value)
+    {
+        std::memcpy(dst, src, count * sizeof(T));
+    }
+    else
+    {
+        for (std::size_t i = 0; i < count; ++i)
+        {
+            new (&dst[i]) T(src[i]); // placement new to copy construct
+        }
+    }
+}
+
+template <bool condition, typename T = void>
+struct my_enable_if {};
+
+template <typename T>
+struct my_enable_if<true, T> { using type = T; };
+
+template <typename T, typename = typename my_enable_if<std::is_integral<T>::value, T>::type>
+void print_integral(T value)
+{
+    std::cout << "Integral value: " << value << "\n";
+}
+
 int main()
 {
     analyzeAndSanitize<const int*>();
@@ -90,6 +143,12 @@ int main()
     auto cd = build_custom_decay("Hello, World!");
     static_assert(std::is_same<decltype(cd), std::string>::value, "Custom decay failed");
     std::cout << "Custom decayed value: " << cd.c_str() << "\n";
+
+    print_copyable(can_copy{});
+    print_copyable(cannot_copy{});
+
+    print_integral(42);
+    // print_integral(3.14); // This will cause a compile-time error due to SFINAE
 
     return 0;
 }
