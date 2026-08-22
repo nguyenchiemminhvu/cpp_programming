@@ -5,3 +5,4 @@
 message(STATUS "[Safety-Critical] Configuring study targets")
 
 add_subdirectory(event_and_dynamic_allocation)
+add_subdirectory(data_serialization_and_protocol_parsing)

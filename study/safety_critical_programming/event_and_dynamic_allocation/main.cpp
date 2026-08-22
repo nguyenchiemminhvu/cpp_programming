@@ -1,5 +1,5 @@
 // =============================================================================
-// Lesson 1 - Event-Driven System & Dynamic Callback Allocation
+// Event-Driven System & Dynamic Callback Allocation
 //
 // This demo contrasts the bad, heap-based observer against the preferred,
 // zero-allocation dispatcher. Build and run it to observe the deterministic,
