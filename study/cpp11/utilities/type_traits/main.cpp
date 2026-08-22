@@ -130,6 +130,16 @@ void print_integral(T value)
     std::cout << "Integral value: " << value << "\n";
 }
 
+// this way is better than using std::enable_if in the function signature:
+// - it keeps the function signature cleaner
+// - it allows for better error messages when the condition is not met
+// - it allows overloading
+template <typename T>
+typename my_enable_if<std::is_floating_point<T>::value, void>::type print_floating_point(T value)
+{
+    std::cout << "Floating point value: " << value << "\n";
+}
+
 int main()
 {
     analyzeAndSanitize<const int*>();
