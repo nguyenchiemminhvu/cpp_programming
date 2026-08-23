@@ -20,7 +20,7 @@ add_subdirectory(cpp11)
 add_subdirectory(cpp14)
 add_subdirectory(cpp17)
 add_subdirectory(cpp20)
-# add_subdirectory(cpp23)   # Uncomment when cpp23 study modules are ready
+add_subdirectory(cpp23)
 
 # ── Cross-Standard Advanced Topics ─────────────────────────────────────────────
 add_subdirectory(advanced)
