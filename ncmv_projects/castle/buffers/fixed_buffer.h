@@ -1,5 +1,13 @@
 #pragma once
 
+#include <array>
+#include <cstddef>
+#include <cstring>
+#include <string>
+#include <string_view>
+#include <cstdarg>
+#include <cstdio>
+
 // ─────────────────────────────────────────────────────────────────────────────
 // fixed_buffer<N> — stack-allocated, bounded, append-only string builder.
 // ─────────────────────────────────────────────────────────────────────────────
