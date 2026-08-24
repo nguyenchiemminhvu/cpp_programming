@@ -12,7 +12,7 @@ namespace bit
 template <typename T>
 constexpr
 typename std::enable_if_t<std::is_integral<T>::value, bool>::type
-test(T value, uint8_t bit_index)
+test(T value, uint8_t bit_index) noexcept
 {
     return (value >> bit_index) & T{1U} != T{0U};
 }
@@ -20,7 +20,7 @@ test(T value, uint8_t bit_index)
 template <typename T, std::size_t bit_index>
 constexpr
 typename std::enable_if_t<std::is_integral<T>::value, bool>::type
-test(T value)
+test(T value) noexcept
 {
     static_assert(bit_index < sizeof(T) * CHAR_BIT, "bit_index is out of range for the type T");
     return (value >> bit_index) & T{1U} != T{0U};
@@ -29,7 +29,7 @@ test(T value)
 template <typename T>
 constexpr
 typename std::enable_if_t<std::is_integral<T>::value, T>::type
-set(T value, uint8_t bit_index)
+set(T value, uint8_t bit_index) noexcept
 {
     return static_cast<T>(value | (T{1U} << bit_index));
 }
@@ -37,7 +37,7 @@ set(T value, uint8_t bit_index)
 template <typename T, std::size_t bit_index>
 constexpr
 typename std::enable_if_t<std::is_integral<T>::value, T>::type
-set(T value)
+set(T value) noexcept
 {
     static_assert(bit_index < sizeof(T) * CHAR_BIT, "bit_index is out of range for the type T");
     return static_cast<T>(value | (T{1U} << bit_index));
@@ -46,7 +46,7 @@ set(T value)
 template <typename T>
 constexpr
 typename std::enable_if_t<std::is_integral<T>::value, T>::type
-clear(T value, uint8_t bit_index)
+clear(T value, uint8_t bit_index) noexcept
 {
     return static_cast<T>(value & static_cast<T>(~(T{1U} << bit_index)));
 }
@@ -54,7 +54,7 @@ clear(T value, uint8_t bit_index)
 template <typename T, std::size_t bit_index>
 constexpr
 typename std::enable_if_t<std::is_integral<T>::value, T>::type
-clear(T value)
+clear(T value) noexcept
 {
     static_assert(bit_index < sizeof(T) * CHAR_BIT, "bit_index is out of range for the type T");
     return static_cast<T>(value & static_cast<T>(~(T{1U} << bit_index)));
@@ -63,7 +63,7 @@ clear(T value)
 template <typename T>
 constexpr
 typename std::enable_if_t<std::is_integral<T>::value, T>::type
-toggle(T value, uint8_t bit_index)
+toggle(T value, uint8_t bit_index) noexcept
 {
     return static_cast<T>(value ^ (T{1U} << bit_index));
 }
@@ -71,7 +71,7 @@ toggle(T value, uint8_t bit_index)
 template <typename T, std::size_t bit_index>
 constexpr
 typename std::enable_if_t<std::is_integral<T>::value, T>::type
-toggle(T value)
+toggle(T value) noexcept
 {
     static_assert(bit_index < sizeof(T) * CHAR_BIT, "bit_index is out of range for the type T");
     return static_cast<T>(value ^ (T{1U} << bit_index));
