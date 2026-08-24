@@ -249,7 +249,7 @@ private:
     {
         // Compile-time picks a cheap mask when N is a power of two; otherwise
         // the compiler emits a single modulo. Both are branch-free.
-        return castle::bit::is_power_of_two(N) ? (i & (N - 1U)) : (i % N);
+        return castle::bit::is_power_of_two<N>() ? (i & (N - 1U)) : (i % N);
     }
 
     static constexpr size_type advance(size_type i) noexcept
