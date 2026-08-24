@@ -19,7 +19,7 @@ all_bits_mask() noexcept
 template <typename T>
 constexpr
 typename std::enable_if_t<std::is_integral<T>::value, T>::type
-single_bit_mask(uint8_t bit_index) noexcept
+single_bit_mask(std::uint32_t bit_index) noexcept
 {
     return static_cast<T>(T{1U} << bit_index);
 }
@@ -36,7 +36,7 @@ single_bit_mask() noexcept
 template <typename T>
 constexpr
 typename std::enable_if_t<std::is_integral<T>::value, T>::type
-low_bits_mask(uint8_t bit_count) noexcept
+low_bits_mask(std::uint32_t bit_count) noexcept
 {
     return static_cast<T>(T{1U} << bit_count) - T{1U};
 }
@@ -53,7 +53,7 @@ low_bits_mask() noexcept
 template <typename T>
 constexpr
 typename std::enable_if_t<std::is_integral<T>::value, T>::type
-high_bits_mask(uint8_t bit_count) noexcept
+high_bits_mask(std::uint32_t bit_count) noexcept
 {
     return static_cast<T>(~(T{1U} << (sizeof(T) * CHAR_BIT - bit_count)) + T{1U});
 }
@@ -70,7 +70,7 @@ high_bits_mask() noexcept
 template <typename T>
 constexpr
 typename std::enable_if_t<std::is_integral<T>::value, T>::type
-range_mask(uint8_t start_bit_index, uint8_t bit_count) noexcept
+range_mask(std::uint32_t start_bit_index, std::uint32_t bit_count) noexcept
 {
     return static_cast<T>(low_bits_mask<T>(bit_count) << start_bit_index);
 }

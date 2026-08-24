@@ -12,7 +12,7 @@ namespace bit
 template <typename T>
 constexpr
 typename std::enable_if_t<std::is_integral<T>::value, bool>::type
-test(T value, uint8_t bit_index) noexcept
+test(T value, std::uint32_t bit_index) noexcept
 {
     return (value >> bit_index) & T{1U} != T{0U};
 }
@@ -29,7 +29,7 @@ test(T value) noexcept
 template <typename T>
 constexpr
 typename std::enable_if_t<std::is_integral<T>::value, T>::type
-set(T value, uint8_t bit_index) noexcept
+set(T value, std::uint32_t bit_index) noexcept
 {
     return static_cast<T>(value | (T{1U} << bit_index));
 }
@@ -46,7 +46,7 @@ set(T value) noexcept
 template <typename T>
 constexpr
 typename std::enable_if_t<std::is_integral<T>::value, T>::type
-clear(T value, uint8_t bit_index) noexcept
+clear(T value, std::uint32_t bit_index) noexcept
 {
     return static_cast<T>(value & static_cast<T>(~(T{1U} << bit_index)));
 }
@@ -63,7 +63,7 @@ clear(T value) noexcept
 template <typename T>
 constexpr
 typename std::enable_if_t<std::is_integral<T>::value, T>::type
-toggle(T value, uint8_t bit_index) noexcept
+toggle(T value, std::uint32_t bit_index) noexcept
 {
     return static_cast<T>(value ^ (T{1U} << bit_index));
 }
