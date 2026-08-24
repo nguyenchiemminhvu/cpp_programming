@@ -29,6 +29,8 @@
 
 namespace castle
 {
+namespace logging
+{
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Compile-time defaults
@@ -137,11 +139,11 @@ inline const char* level_label(log_level lv) noexcept
 
 // Base case — nothing left to append.
 template <std::size_t N>
-inline void build_message(fixed_buffer<N>& /*buf*/) noexcept {}
+inline void build_message(buffers::fixed_buffer<N>& /*buf*/) noexcept {}
 
 // Recursive case — append the first argument, then recurse on the rest.
 template <std::size_t N, typename T, typename... Rest>
-void build_message(fixed_buffer<N>& buf, T&& first, Rest&&... rest)
+void build_message(buffers::fixed_buffer<N>& buf, T&& first, Rest&&... rest)
 {
     buf.append(std::forward<T>(first));
     build_message(buf, std::forward<Rest>(rest)...);
@@ -149,7 +151,7 @@ void build_message(fixed_buffer<N>& buf, T&& first, Rest&&... rest)
 
 /** Concatenate any number of heterogeneous arguments into @p buf. */
 template <std::size_t N, typename... Args>
-void make_message(fixed_buffer<N>& buf, Args&&... args)
+void make_message(buffers::fixed_buffer<N>& buf, Args&&... args)
 {
     build_message(buf, std::forward<Args>(args)...);
 }
@@ -314,11 +316,11 @@ public:
         if (!filter_->is_enabled(level)) return;
 
         // 1) Assemble the user message into a bounded buffer.
-        fixed_buffer<MaxLen> msg;
+        buffers::fixed_buffer<MaxLen> msg;
         detail::make_message(msg, std::forward<Args>(args)...);
 
         // 2) Format prefix + message into the record buffer.
-        fixed_buffer<MaxLen> record;
+        buffers::fixed_buffer<MaxLen> record;
         formatter_->format(
             level,
             elapsed_ms(),
@@ -341,7 +343,7 @@ private:
     /** Trampoline used by the formatter to push chunks into our fixed_buffer. */
     static void append_thunk(void* ctx, std::string_view chunk) noexcept
     {
-        static_cast<fixed_buffer<MaxLen>*>(ctx)->append(chunk);
+        static_cast<buffers::fixed_buffer<MaxLen>*>(ctx)->append(chunk);
     }
 
     long long elapsed_ms() const noexcept
@@ -409,6 +411,7 @@ public:
 /** Alias matching the pre-refactor public name. */
 using logger_registry = basic_logger_registry<default_log_capacity>;
 
+} // namespace logging
 } // namespace castle
 
 // ─────────────────────────────────────────────────────────────────────────────
