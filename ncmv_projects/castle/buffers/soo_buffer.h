@@ -7,6 +7,8 @@
 
 namespace castle
 {
+namespace buffers
+{
 template <typename T, std::size_t StackSize = 32, bool HeapAllowed = true>
 class soo_buffer
 {
@@ -112,4 +114,5 @@ private:
     bool is_heap_allocated;
 };
 
+} // namespace buffers
 } // namespace castle

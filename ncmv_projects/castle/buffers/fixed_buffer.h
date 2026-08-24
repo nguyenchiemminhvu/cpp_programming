@@ -26,6 +26,12 @@
  *
  * Not thread-safe on its own; the logger serialises access via its mutex.
  */
+
+namespace castle
+{
+namespace buffers
+{
+
 template <std::size_t N>
 class fixed_buffer
 {
@@ -144,3 +150,6 @@ private:
     std::size_t             size_      = 0;
     bool                    truncated_ = false;
 };
+
+} // namespace buffers
+} // namespace castle
