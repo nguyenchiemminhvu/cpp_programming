@@ -2,6 +2,7 @@
 
 #include <type_traits>
 #include <cstdint>
+#include <climits>
 
 namespace castle
 {
@@ -50,7 +51,7 @@ constexpr std::uint32_t popcount(std::uint64_t value) noexcept
 // matching unsigned-fixed-width overload above via its underlying bit pattern.
 template <typename T>
 constexpr
-typename std::enable_if<std::is_integral<T>::value, T>::type
+typename std::enable_if<std::is_integral<T>::value, std::uint32_t>::type
 popcount(T value) noexcept
 {
     static_assert(sizeof(T) == 1 || sizeof(T) == 2 || sizeof(T) == 4 || sizeof(T) == 8, "popcount: unsupported integral size");
@@ -60,6 +61,92 @@ popcount(T value) noexcept
         sizeof(T) == 2 ? popcount(static_cast<std::uint16_t>(value)) :
         sizeof(T) == 4 ? popcount(static_cast<std::uint32_t>(value)) :
                          popcount(static_cast<std::uint64_t>(value));
+}
+
+template <typename T>
+constexpr
+typename std::enable_if<std::is_integral<T>::value, std::uint32_t>::type
+count_ones(T value) noexcept
+{
+    return popcount(value);
+}
+
+template <typename T>
+constexpr
+typename std::enable_if<std::is_integral<T>::value, std::uint32_t>::type
+count_zeros(T value) noexcept
+{
+    return sizeof(T) * CHAR_BIT - popcount(value);
+}
+
+template <typename T>
+constexpr typename std::enable_if<std::is_integral<T>::value, std::uint32_t>::type
+count_leading_zeros(T value) noexcept
+{
+    static_assert(sizeof(T) == 1 || sizeof(T) == 2 || sizeof(T) == 4 || sizeof(T) == 8, 
+                  "count_leading_zeros: unsupported integral size");
+
+    // Make value unsigned to guarantee safe bitwise right-shifts
+    using UnsignedT = typename std::make_unsigned<T>::type;
+    UnsignedT uval = static_cast<UnsignedT>(value);
+
+    if (uval == 0)
+        return sizeof(T) * CHAR_BIT;
+
+    std::uint32_t count = 0;
+
+    // Binary search by shifting the value RIGHT instead of left
+    for (std::size_t i = (sizeof(T) * CHAR_BIT >> 1); i > 0; i >>= 1)
+    {
+        if ((uval >> i) == 0)
+        {
+            count += static_cast<std::uint32_t>(i);
+        }
+        else
+        {
+            uval >>= i; // Move down to check the lower half
+        }
+    }
+
+    return count;
+}
+
+template <std::size_t N>
+constexpr std::uint32_t count_leading_zeros() noexcept
+{
+    if (N == 0)
+        return sizeof(std::size_t) * CHAR_BIT;
+    
+    std::uint32_t count = 0;
+    std::size_t temp = N;
+
+    for (std::size_t i = (sizeof(std::size_t) * CHAR_BIT >> 1); i > 0; i >>= 1)
+    {
+        if ((temp >> i) == 0)
+        {
+            count += static_cast<std::uint32_t>(i);
+        }
+        else
+        {
+            temp >>= i;
+        }
+    }
+
+    return count;
+}
+
+template <typename T>
+constexpr
+typename std::enable_if<std::is_integral<T>::value, T>::type
+parity(T value) noexcept
+{
+    return popcount(value) & 1;
+}
+
+template <std::size_t N>
+constexpr std::uint32_t parity() noexcept
+{
+    return popcount(static_cast<std::uint64_t>(N)) & 1;
 }
 
 } // namespace bit
