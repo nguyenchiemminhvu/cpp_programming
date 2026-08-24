@@ -5,6 +5,8 @@
 #include <utility>
 #include <type_traits>
 
+namespace castle
+{
 template <typename T, std::size_t StackSize = 32, bool HeapAllowed = true>
 class soo_buffer
 {
@@ -109,3 +111,5 @@ private:
     };
     bool is_heap_allocated;
 };
+
+} // namespace castle
