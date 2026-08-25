@@ -9,7 +9,7 @@
 #include <cstdio>
 
 // ─────────────────────────────────────────────────────────────────────────────
-// fixed_buffer<N> — stack-allocated, bounded, append-only string builder.
+// fixed_string<N> — stack-allocated, bounded, append-only string builder.
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
@@ -33,12 +33,12 @@ namespace buffers
 {
 
 template <std::size_t N>
-class fixed_buffer
+class fixed_string
 {
-    static_assert(N >= 16, "fixed_buffer capacity must leave room for prefix + ellipsis");
+    static_assert(N >= 16, "fixed_string capacity must leave room for prefix + ellipsis");
 
 public:
-    fixed_buffer() noexcept { data_[0] = '\0'; }
+    fixed_string() noexcept { data_[0] = '\0'; }
 
     static constexpr std::size_t capacity() noexcept { return N; }
 
