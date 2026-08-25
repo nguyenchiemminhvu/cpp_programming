@@ -56,11 +56,10 @@ popcount(T value) noexcept
 {
     static_assert(sizeof(T) == 1 || sizeof(T) == 2 || sizeof(T) == 4 || sizeof(T) == 8, "popcount: unsupported integral size");
 
-    return
-        sizeof(T) == 1 ? popcount(static_cast<std::uint8_t>(value))  :
-        sizeof(T) == 2 ? popcount(static_cast<std::uint16_t>(value)) :
-        sizeof(T) == 4 ? popcount(static_cast<std::uint32_t>(value)) :
-                         popcount(static_cast<std::uint64_t>(value));
+    using UnsignedT = typename std::make_unsigned<T>::type;
+    UnsignedT uval = static_cast<UnsignedT>(value);
+
+    return popcount(uval);
 }
 
 template <typename T>
