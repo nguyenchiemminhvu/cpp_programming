@@ -8,6 +8,12 @@ namespace castle
 namespace bit
 {
 
+// ──────────────────────────────────────────────────────────────
+// reverse — reverse the order of all bits in an integral value.
+// Uses parallel swap (SWAR) for each fixed-width size.
+// E.g. reverse(0b10110000) → 0b00001101.
+// ──────────────────────────────────────────────────────────────
+
 constexpr uint8_t reverse(uint8_t n) noexcept
 {
     n = ((n & 0xF0) >> 4) | ((n & 0x0F) << 4);

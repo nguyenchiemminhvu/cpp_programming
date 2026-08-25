@@ -9,7 +9,11 @@ namespace castle
 namespace bit
 {
 
-// SWAR (SIMD Within A Register) popcount. Branch-free, constexpr, no lookup tables.
+// ──────────────────────────────────────────────────────────────
+// popcount — count the number of set bits (1s) in a value.
+// Uses the SWAR (SIMD Within A Register) algorithm.
+// Branch-free, constexpr, no lookup tables.
+// ──────────────────────────────────────────────────────────────
 
 constexpr std::uint32_t popcount(std::uint64_t value) noexcept
 {
@@ -20,8 +24,6 @@ constexpr std::uint32_t popcount(std::uint64_t value) noexcept
     return static_cast<std::uint32_t>((x * 0x0101010101010101ULL) >> 56);
 }
 
-// Generic dispatcher: routes any integral (including signed / char / bool) to the
-// matching unsigned-fixed-width overload above via its underlying bit pattern.
 template <typename T>
 constexpr
 typename std::enable_if<std::is_integral<T>::value, std::uint32_t>::type
@@ -32,6 +34,12 @@ popcount(T value) noexcept
 
     return popcount(uval64);
 }
+
+// ──────────────────────────────────────────────────────────────
+// count_ones / count_zeros — convenience aliases.
+//   count_ones  returns the number of 1-bits (same as popcount).
+//   count_zeros returns the number of 0-bits.
+// ──────────────────────────────────────────────────────────────
 
 template <typename T>
 constexpr
@@ -48,6 +56,13 @@ count_zeros(T value) noexcept
 {
     return sizeof(T) * CHAR_BIT - popcount(value);
 }
+
+// ──────────────────────────────────────────────────────────────
+// count_leading_zeros — number of consecutive zero bits
+// starting from the most-significant bit.
+// Returns sizeof(T)*CHAR_BIT for input 0.
+// Uses a branch-free binary-search approach.
+// ──────────────────────────────────────────────────────────────
 
 template <typename T>
 constexpr typename std::enable_if<std::is_integral<T>::value, std::uint32_t>::type
@@ -104,6 +119,112 @@ constexpr std::uint32_t count_leading_zeros() noexcept
 
     return count;
 }
+
+// ──────────────────────────────────────────────────────────────
+// count_trailing_zeros — number of consecutive zero bits
+// starting from the least-significant bit.
+// ──────────────────────────────────────────────────────────────
+
+template <typename T>
+constexpr
+typename std::enable_if<std::is_integral<T>::value, std::uint32_t>::type
+count_trailing_zeros(T value) noexcept
+{
+    static_assert(sizeof(T) == 1 || sizeof(T) == 2 || sizeof(T) == 4 || sizeof(T) == 8,
+                  "count_trailing_zeros: unsupported integral size");
+
+    using UnsignedT = typename std::make_unsigned<T>::type;
+    UnsignedT uval = static_cast<UnsignedT>(value);
+
+    if (uval == 0)
+        return sizeof(T) * CHAR_BIT;
+
+    std::uint32_t count = 0;
+
+    for (std::size_t i = (sizeof(T) * CHAR_BIT >> 1); i > 0; i >>= 1)
+    {
+        if ((uval & ((UnsignedT{1U} << i) - UnsignedT{1U})) == 0)
+        {
+            count += static_cast<std::uint32_t>(i);
+            uval >>= i;
+        }
+    }
+
+    return count;
+}
+
+template <std::size_t N>
+constexpr std::uint32_t count_trailing_zeros() noexcept
+{
+    if (N == 0)
+        return sizeof(std::size_t) * CHAR_BIT;
+
+    std::uint32_t count = 0;
+    std::size_t temp = N;
+
+    for (std::size_t i = (sizeof(std::size_t) * CHAR_BIT >> 1); i > 0; i >>= 1)
+    {
+        if ((temp & ((std::size_t{1U} << i) - std::size_t{1U})) == 0)
+        {
+            count += static_cast<std::uint32_t>(i);
+            temp >>= i;
+        }
+    }
+
+    return count;
+}
+
+// ──────────────────────────────────────────────────────────────
+// bit_width — minimum number of bits needed to represent
+// a non-negative value (equivalent to floor(log2(v)) + 1).
+// Returns 0 for input 0.
+// ──────────────────────────────────────────────────────────────
+
+template <typename T>
+constexpr
+typename std::enable_if<std::is_integral<T>::value, std::uint32_t>::type
+bit_width(T value) noexcept
+{
+    using UnsignedT = typename std::make_unsigned<T>::type;
+    UnsignedT uval = static_cast<UnsignedT>(value);
+
+    if (uval == 0)
+        return 0;
+
+    return sizeof(T) * CHAR_BIT - count_leading_zeros(uval);
+}
+
+template <std::size_t N>
+constexpr std::uint32_t bit_width() noexcept
+{
+    if (N == 0)
+        return 0;
+
+    return sizeof(std::size_t) * CHAR_BIT - count_leading_zeros<N>();
+}
+
+// ──────────────────────────────────────────────────────────────
+// log2_floor — floor(log2(v)). Undefined for v == 0.
+// ──────────────────────────────────────────────────────────────
+
+template <typename T>
+constexpr
+typename std::enable_if<std::is_integral<T>::value, std::uint32_t>::type
+log2_floor(T value) noexcept
+{
+    using UnsignedT = typename std::make_unsigned<T>::type;
+    UnsignedT uval = static_cast<UnsignedT>(value);
+
+    if (uval == 0)
+        return 0; // defensive; mathematically undefined
+
+    return bit_width(uval) - 1U;
+}
+
+// ──────────────────────────────────────────────────────────────
+// parity — returns 1 if the number of set bits is odd,
+// 0 if even. Useful for error-detection schemes.
+// ──────────────────────────────────────────────────────────────
 
 template <typename T>
 constexpr

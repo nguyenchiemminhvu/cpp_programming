@@ -9,6 +9,11 @@ namespace castle
 namespace bit
 {
 
+// ──────────────────────────────────────────────────────────────
+// is_even / is_odd — check the parity of an integer using
+// the least-significant bit. Branch-free.
+// ──────────────────────────────────────────────────────────────
+
 template <typename T>
 constexpr
 typename std::enable_if_t<std::is_integral<T>::value, bool>::type
@@ -37,6 +42,12 @@ constexpr bool is_odd() noexcept
     return (N & 1) != 0;
 }
 
+// ──────────────────────────────────────────────────────────────
+// is_power_of_two — returns true if the value is an exact
+// power of two (has exactly one bit set). Returns false for
+// zero and negative values.
+// ──────────────────────────────────────────────────────────────
+
 template <typename T>
 constexpr
 typename std::enable_if_t<std::is_integral<T>::value, bool>::type
@@ -55,6 +66,12 @@ constexpr bool is_power_of_two() noexcept
 {
     return N != 0 && (N & (N - 1)) == 0;
 }
+
+// ──────────────────────────────────────────────────────────────
+// next_power_of_two — returns the smallest power of two that
+// is greater than or equal to the input value.
+// Returns 1 for input 0.
+// ──────────────────────────────────────────────────────────────
 
 template <typename T>
 constexpr
@@ -87,6 +104,12 @@ constexpr std::size_t next_power_of_two() noexcept
     return v + 1;
 }
 
+// ──────────────────────────────────────────────────────────────
+// previous_power_of_two — returns the largest power of two
+// that is less than or equal to the input value.
+// Returns 0 for input 0.
+// ──────────────────────────────────────────────────────────────
+
 template <typename T>
 constexpr
 typename std::enable_if_t<std::is_integral<T>::value, T>::type
@@ -116,6 +139,56 @@ constexpr std::size_t previous_power_of_two() noexcept
 
     return v - (v >> 1);
 }
+
+// ──────────────────────────────────────────────────────────────
+// align_up / align_down — round an address or size to the
+// nearest multiple of a power-of-two alignment.
+// Ubiquitous in DMA buffer setup, memory-mapped I/O, and
+// linker-script math in embedded systems.
+// ──────────────────────────────────────────────────────────────
+
+template <typename T>
+constexpr
+typename std::enable_if_t<std::is_integral<T>::value, T>::type
+align_up(T value, T alignment) noexcept
+{
+    // alignment must be a power of two; caller's responsibility.
+    using UnsignedT = typename std::make_unsigned<T>::type;
+    UnsignedT uval = static_cast<UnsignedT>(value);
+    UnsignedT mask = static_cast<UnsignedT>(alignment) - UnsignedT{1U};
+    return static_cast<T>((uval + mask) & ~mask);
+}
+
+template <typename T>
+constexpr
+typename std::enable_if_t<std::is_integral<T>::value, T>::type
+align_down(T value, T alignment) noexcept
+{
+    using UnsignedT = typename std::make_unsigned<T>::type;
+    UnsignedT uval = static_cast<UnsignedT>(value);
+    UnsignedT mask = static_cast<UnsignedT>(alignment) - UnsignedT{1U};
+    return static_cast<T>(uval & ~mask);
+}
+
+// ──────────────────────────────────────────────────────────────
+// is_aligned — returns true if the value is a multiple of the
+// given power-of-two alignment.
+// ──────────────────────────────────────────────────────────────
+
+template <typename T>
+constexpr
+typename std::enable_if_t<std::is_integral<T>::value, bool>::type
+is_aligned(T value, T alignment) noexcept
+{
+    using UnsignedT = typename std::make_unsigned<T>::type;
+    UnsignedT mask = static_cast<UnsignedT>(alignment) - UnsignedT{1U};
+    return (static_cast<UnsignedT>(value) & mask) == UnsignedT{0U};
+}
+
+// ──────────────────────────────────────────────────────────────
+// sign — returns -1, 0, or +1 indicating the sign of a value.
+// Branch-free implementation using comparison operators.
+// ──────────────────────────────────────────────────────────────
 
 template <typename T>
 constexpr

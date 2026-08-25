@@ -9,6 +9,12 @@ namespace castle
 namespace bit
 {
 
+// ──────────────────────────────────────────────────────────────
+// rotate_left — circular left rotation of bits.
+//   shift : number of bit positions to rotate.
+// Bits shifted out at the MSB re-enter at the LSB.
+// ──────────────────────────────────────────────────────────────
+
 template <typename T>
 constexpr T rotate_left(T value, std::uint32_t shift) noexcept
 {
@@ -25,6 +31,12 @@ constexpr T rotate_left(T value, std::uint32_t shift) noexcept
     uval = (uval << shift) | (uval >> (bit_count - shift));
     return static_cast<T>(uval);
 }
+
+// ──────────────────────────────────────────────────────────────
+// rotate_right — circular right rotation of bits.
+//   shift : number of bit positions to rotate.
+// Bits shifted out at the LSB re-enter at the MSB.
+// ──────────────────────────────────────────────────────────────
 
 template <typename T>
 constexpr T rotate_right(T value, std::uint32_t shift) noexcept

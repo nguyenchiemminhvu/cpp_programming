@@ -9,6 +9,12 @@ namespace castle
 namespace bit
 {
 
+// ──────────────────────────────────────────────────────────────
+// test — check whether a specific bit is set (1) in a value.
+//   bit_index : zero-based position of the bit to test.
+// Returns true if the bit is set, false otherwise.
+// ──────────────────────────────────────────────────────────────
+
 template <typename T>
 constexpr
 typename std::enable_if_t<std::is_integral<T>::value, bool>::type
@@ -35,6 +41,12 @@ test(T value) noexcept
 
     return ((uval >> bit_index) & UnsignedT{1U}) != UnsignedT{0U};
 }
+
+// ──────────────────────────────────────────────────────────────
+// set — set a specific bit to 1 in a value.
+//   bit_index : zero-based position of the bit to set.
+// Returns the modified value with the target bit set.
+// ──────────────────────────────────────────────────────────────
 
 template <typename T>
 constexpr
@@ -63,6 +75,12 @@ set(T value) noexcept
     return static_cast<T>(uval | (UnsignedT{1U} << bit_index));
 }
 
+// ──────────────────────────────────────────────────────────────
+// clear — clear a specific bit to 0 in a value.
+//   bit_index : zero-based position of the bit to clear.
+// Returns the modified value with the target bit cleared.
+// ──────────────────────────────────────────────────────────────
+
 template <typename T>
 constexpr
 typename std::enable_if_t<std::is_integral<T>::value, T>::type
@@ -89,6 +107,12 @@ clear(T value) noexcept
 
     return static_cast<T>(uval & static_cast<UnsignedT>(~(UnsignedT{1U} << bit_index)));
 }
+
+// ──────────────────────────────────────────────────────────────
+// toggle — flip a specific bit in a value (0→1, 1→0).
+//   bit_index : zero-based position of the bit to toggle.
+// Returns the modified value with the target bit inverted.
+// ──────────────────────────────────────────────────────────────
 
 template <typename T>
 constexpr

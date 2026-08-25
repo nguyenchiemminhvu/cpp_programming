@@ -9,6 +9,11 @@ namespace castle
 namespace bit
 {
 
+// ──────────────────────────────────────────────────────────────
+// all_bits_mask — returns a value with every bit set to 1.
+// Equivalent to ~T{0}.
+// ──────────────────────────────────────────────────────────────
+
 template <typename T>
 constexpr
 typename std::enable_if_t<std::is_integral<T>::value, T>::type
@@ -16,6 +21,11 @@ all_bits_mask() noexcept
 {
     return static_cast<T>(~T{0U});
 }
+
+// ──────────────────────────────────────────────────────────────
+// single_bit_mask — returns a value with only one bit set.
+//   bit_index : zero-based position of the bit to set.
+// ──────────────────────────────────────────────────────────────
 
 template <typename T>
 constexpr
@@ -37,6 +47,12 @@ single_bit_mask() noexcept
     UnsignedT uval = static_cast<UnsignedT>(UnsignedT{1U} << bit_index);
     return static_cast<T>(uval);
 }
+
+// ──────────────────────────────────────────────────────────────
+// low_bits_mask — returns a mask with the lowest N bits set.
+//   bit_count : number of low-order bits to set.
+// E.g. low_bits_mask<uint8_t>(3) → 0b00000111.
+// ──────────────────────────────────────────────────────────────
 
 template <typename T>
 constexpr
@@ -70,6 +86,12 @@ low_bits_mask() noexcept
         return static_cast<T>(uval);
     }
 }
+
+// ──────────────────────────────────────────────────────────────
+// high_bits_mask — returns a mask with the highest N bits set.
+//   bit_count : number of high-order bits to set.
+// E.g. high_bits_mask<uint8_t>(3) → 0b11100000.
+// ──────────────────────────────────────────────────────────────
 
 template <typename T>
 constexpr
@@ -110,6 +132,12 @@ high_bits_mask() noexcept
         return static_cast<T>(uval);
     }
 }
+
+// ──────────────────────────────────────────────────────────────
+// range_mask — returns a mask with a contiguous range of bits
+// set, starting at start_bit_index with bit_count bits wide.
+// E.g. range_mask<uint8_t>(2, 3) → 0b00011100.
+// ──────────────────────────────────────────────────────────────
 
 template <typename T>
 constexpr
