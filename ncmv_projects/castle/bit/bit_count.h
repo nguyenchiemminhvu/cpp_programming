@@ -11,33 +11,6 @@ namespace bit
 
 // SWAR (SIMD Within A Register) popcount. Branch-free, constexpr, no lookup tables.
 
-constexpr std::uint32_t popcount(std::uint8_t value) noexcept
-{
-    std::uint32_t x = value;
-    x -= (x >> 1) & 0x55U;
-    x = (x & 0x33U) + ((x >> 2) & 0x33U);
-    x = (x + (x >> 4)) & 0x0FU;
-    return x;
-}
-
-constexpr std::uint32_t popcount(std::uint16_t value) noexcept
-{
-    std::uint32_t x = value;
-    x -= (x >> 1) & 0x5555U;
-    x = (x & 0x3333U) + ((x >> 2) & 0x3333U);
-    x = (x + (x >> 4)) & 0x0F0FU;
-    return (x * 0x0101U) >> 8;
-}
-
-constexpr std::uint32_t popcount(std::uint32_t value) noexcept
-{
-    std::uint32_t x = value;
-    x -= (x >> 1) & 0x55555555U;
-    x = (x & 0x33333333U) + ((x >> 2) & 0x33333333U);
-    x = (x + (x >> 4)) & 0x0F0F0F0FU;
-    return (x * 0x01010101U) >> 24;
-}
-
 constexpr std::uint32_t popcount(std::uint64_t value) noexcept
 {
     std::uint64_t x = value;
@@ -54,12 +27,10 @@ constexpr
 typename std::enable_if<std::is_integral<T>::value, std::uint32_t>::type
 popcount(T value) noexcept
 {
-    static_assert(sizeof(T) == 1 || sizeof(T) == 2 || sizeof(T) == 4 || sizeof(T) == 8, "popcount: unsupported integral size");
-
     using UnsignedT = typename std::make_unsigned<T>::type;
-    UnsignedT uval = static_cast<UnsignedT>(value);
+    uint64_t uval64 = static_cast<UnsignedT>(value);
 
-    return popcount(uval);
+    return popcount(uval64);
 }
 
 template <typename T>
@@ -136,7 +107,7 @@ constexpr std::uint32_t count_leading_zeros() noexcept
 
 template <typename T>
 constexpr
-typename std::enable_if<std::is_integral<T>::value, T>::type
+typename std::enable_if<std::is_integral<T>::value, std::uint32_t>::type
 parity(T value) noexcept
 {
     return popcount(value) & 1;

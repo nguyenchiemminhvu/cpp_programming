@@ -42,7 +42,12 @@ constexpr
 typename std::enable_if_t<std::is_integral<T>::value, bool>::type
 is_power_of_two(T v) noexcept
 {
-    return v != 0 && (v & (v - 1)) == 0;
+    if (v < 0)
+        return false; // Negative numbers are not powers of two
+
+    using UnsignedT = typename std::make_unsigned<T>::type;
+    UnsignedT uval = static_cast<UnsignedT>(v);
+    return uval != 0 && (uval & (uval - 1)) == 0;
 }
 
 template <std::size_t N>
@@ -59,11 +64,14 @@ next_power_of_two(T v) noexcept
     if (v == 0)
         return 1;
 
-    --v; // handle edge case where v is already a power of two
-    for (std::size_t i = 1; i < sizeof(T) * CHAR_BIT; i *= 2)
-        v |= v >> i;
+    using UnsignedT = typename std::make_unsigned<T>::type;
+    UnsignedT uval = static_cast<UnsignedT>(v);
 
-    return v + 1;
+    --uval; // handle edge case where v is already a power of two
+    for (std::size_t i = 1; i < sizeof(T) * CHAR_BIT; i *= 2)
+        uval |= uval >> i;
+
+    return static_cast<T>(uval + 1);
 }
 
 template <std::size_t N>
@@ -87,10 +95,13 @@ previous_power_of_two(T v) noexcept
     if (v == 0)
         return 0;
 
-    for (std::size_t i = 1; i < sizeof(T) * CHAR_BIT; i *= 2)
-        v |= v >> i;
+    using UnsignedT = typename std::make_unsigned<T>::type;
+    UnsignedT uval = static_cast<UnsignedT>(v);
 
-    return v - (v >> 1);
+    for (std::size_t i = 1; i < sizeof(T) * CHAR_BIT; i *= 2)
+        uval |= uval >> i;
+
+    return static_cast<T>(uval - (uval >> 1));
 }
 
 template <std::size_t N>
