@@ -24,8 +24,6 @@ constexpr
 typename std::enable_if<std::is_integral<T>::value, T>::type
 gcd(T a, T b) noexcept
 {
-    static_assert(std::is_integral<T>::value, "T must be integral");
-
     // Handle signs for signed types
     if constexpr (std::is_signed<T>::value)
     {
