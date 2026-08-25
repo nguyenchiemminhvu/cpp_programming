@@ -14,10 +14,13 @@ constexpr
 typename std::enable_if_t<std::is_integral<T>::value, bool>::type
 test(T value, std::uint32_t bit_index) noexcept
 {
+    if (bit_index >= sizeof(T) * CHAR_BIT)
+        return false;
+
     using UnsignedT = typename std::make_unsigned<T>::type;
     UnsignedT uval = static_cast<UnsignedT>(value);
 
-    return (uval >> bit_index) & UnsignedT{1U} != UnsignedT{0U};
+    return ((uval >> bit_index) & UnsignedT{1U}) != UnsignedT{0U};
 }
 
 template <typename T, std::size_t bit_index>
@@ -30,7 +33,7 @@ test(T value) noexcept
     using UnsignedT = typename std::make_unsigned<T>::type;
     UnsignedT uval = static_cast<UnsignedT>(value);
 
-    return (uval >> bit_index) & UnsignedT{1U} != UnsignedT{0U};
+    return ((uval >> bit_index) & UnsignedT{1U}) != UnsignedT{0U};
 }
 
 template <typename T>
@@ -38,6 +41,9 @@ constexpr
 typename std::enable_if_t<std::is_integral<T>::value, T>::type
 set(T value, std::uint32_t bit_index) noexcept
 {
+    if (bit_index >= sizeof(T) * CHAR_BIT)
+        return value;
+
     using UnsignedT = typename std::make_unsigned<T>::type;
     UnsignedT uval = static_cast<UnsignedT>(value);
 
@@ -62,6 +68,9 @@ constexpr
 typename std::enable_if_t<std::is_integral<T>::value, T>::type
 clear(T value, std::uint32_t bit_index) noexcept
 {
+    if (bit_index >= sizeof(T) * CHAR_BIT)
+        return value;
+
     using UnsignedT = typename std::make_unsigned<T>::type;
     UnsignedT uval = static_cast<UnsignedT>(value);
 
@@ -86,6 +95,9 @@ constexpr
 typename std::enable_if_t<std::is_integral<T>::value, T>::type
 toggle(T value, std::uint32_t bit_index) noexcept
 {
+    if (bit_index >= sizeof(T) * CHAR_BIT)
+        return value;
+
     using UnsignedT = typename std::make_unsigned<T>::type;
     UnsignedT uval = static_cast<UnsignedT>(value);
 

@@ -2,6 +2,7 @@
 
 #include <type_traits>
 #include <cstdint>
+#include <climits>
 
 namespace castle
 {
@@ -22,7 +23,7 @@ typename std::enable_if_t<std::is_integral<T>::value, T>::type
 single_bit_mask(std::uint32_t bit_index) noexcept
 {
     using UnsignedT = typename std::make_unsigned<T>::type;
-    UnsignedT uval = static_cast<UnsignedT>(T{1U} << bit_index);
+    UnsignedT uval = static_cast<UnsignedT>(UnsignedT{1U} << bit_index);
     return static_cast<T>(uval);
 }
 
@@ -33,7 +34,7 @@ single_bit_mask() noexcept
 {
     static_assert(bit_index < sizeof(T) * CHAR_BIT, "bit_index is out of range for the type T");
     using UnsignedT = typename std::make_unsigned<T>::type;
-    UnsignedT uval = static_cast<UnsignedT>(T{1U} << bit_index);
+    UnsignedT uval = static_cast<UnsignedT>(UnsignedT{1U} << bit_index);
     return static_cast<T>(uval);
 }
 
@@ -43,6 +44,10 @@ typename std::enable_if_t<std::is_integral<T>::value, T>::type
 low_bits_mask(std::uint32_t bit_count) noexcept
 {
     using UnsignedT = typename std::make_unsigned<T>::type;
+
+    if (bit_count >= sizeof(T) * CHAR_BIT)
+        return static_cast<T>(~UnsignedT{0U});
+
     UnsignedT uval = static_cast<UnsignedT>(UnsignedT{1U} << bit_count) - UnsignedT{1U};
     return static_cast<T>(uval);
 }
@@ -54,8 +59,16 @@ low_bits_mask() noexcept
 {
     static_assert(bit_count <= sizeof(T) * CHAR_BIT, "bit_count is out of range for the type T");
     using UnsignedT = typename std::make_unsigned<T>::type;
-    UnsignedT uval = static_cast<UnsignedT>(UnsignedT{1U} << bit_count) - UnsignedT{1U};
-    return static_cast<T>(uval);
+
+    if constexpr (bit_count == sizeof(T) * CHAR_BIT)
+    {
+        return static_cast<T>(~UnsignedT{0U});
+    }
+    else
+    {
+        UnsignedT uval = static_cast<UnsignedT>(UnsignedT{1U} << bit_count) - UnsignedT{1U};
+        return static_cast<T>(uval);
+    }
 }
 
 template <typename T>
@@ -64,7 +77,14 @@ typename std::enable_if_t<std::is_integral<T>::value, T>::type
 high_bits_mask(std::uint32_t bit_count) noexcept
 {
     using UnsignedT = typename std::make_unsigned<T>::type;
-    UnsignedT uval = static_cast<UnsignedT>(~(UnsignedT{1U} << (sizeof(T) * CHAR_BIT - bit_count)) + UnsignedT{1U});
+
+    if (bit_count == 0)
+        return static_cast<T>(UnsignedT{0U});
+
+    if (bit_count >= sizeof(T) * CHAR_BIT)
+        return static_cast<T>(~UnsignedT{0U});
+
+    UnsignedT uval = static_cast<UnsignedT>(~UnsignedT{0U}) << (sizeof(T) * CHAR_BIT - bit_count);
     return static_cast<T>(uval);
 }
 
@@ -75,8 +95,20 @@ high_bits_mask() noexcept
 {
     static_assert(bit_count <= sizeof(T) * CHAR_BIT, "bit_count is out of range for the type T");
     using UnsignedT = typename std::make_unsigned<T>::type;
-    UnsignedT uval = static_cast<UnsignedT>(~(UnsignedT{1U} << (sizeof(T) * CHAR_BIT - bit_count)) + UnsignedT{1U});
-    return static_cast<T>(uval);
+
+    if constexpr (bit_count == 0)
+    {
+        return static_cast<T>(UnsignedT{0U});
+    }
+    else if constexpr (bit_count == sizeof(T) * CHAR_BIT)
+    {
+        return static_cast<T>(~UnsignedT{0U});
+    }
+    else
+    {
+        UnsignedT uval = static_cast<UnsignedT>(~UnsignedT{0U}) << (sizeof(T) * CHAR_BIT - bit_count);
+        return static_cast<T>(uval);
+    }
 }
 
 template <typename T>
