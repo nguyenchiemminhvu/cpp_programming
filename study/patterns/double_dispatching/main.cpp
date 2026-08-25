@@ -50,6 +50,72 @@ public:
     }
 };
 
+// ------------------------------------
+
+class pdf_document;
+class word_document;
+
+class printer
+{
+public:
+    virtual ~printer() = default;
+    virtual void print_pdf(pdf_document& doc) = 0;
+    virtual void print_word(word_document& doc) = 0;
+};
+
+class inkjet_printer : public printer
+{
+public:
+    void print_pdf(pdf_document& doc) override
+    {
+        std::cout << "Printing PDF document on inkjet printer" << std::endl;
+    }
+
+    void print_word(word_document& doc) override
+    {
+        std::cout << "Printing Word document on inkjet printer" << std::endl;
+    }
+};
+
+class laser_printer : public printer
+{
+public:
+    void print_pdf(pdf_document& doc) override
+    {
+        std::cout << "Printing PDF document on laser printer" << std::endl;
+    }
+
+    void print_word(word_document& doc) override
+    {
+        std::cout << "Printing Word document on laser printer" << std::endl;
+    }
+};
+
+class document
+{
+public:
+    virtual ~document() = default;
+    virtual void print_on(printer& p) = 0;
+};
+
+class pdf_document : public document
+{
+public:
+    void print_on(printer& p) override
+    {
+        p.print_pdf(*this);
+    }
+};
+
+class word_document : public document
+{
+public:
+    void print_on(printer& p) override
+    {
+        p.print_word(*this);
+    }
+};
+
 int main()
 {
     player p;
@@ -57,6 +123,16 @@ int main()
 
     p.collide_with(e); // Player collides with Enemy
     e.collide_with(p); // Enemy collides with Player
+
+    pdf_document pdf;
+    word_document word;
+    inkjet_printer inkjet;
+    laser_printer laser;
+
+    pdf.print_on(inkjet);
+    pdf.print_on(laser);
+    word.print_on(inkjet);
+    word.print_on(laser);
 
     return 0;
 }
