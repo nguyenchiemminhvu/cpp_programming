@@ -75,7 +75,7 @@ class event_dispatcher
 
 public:
     using error = event_dispatcher_error;
-    using subscription = callback_subscription;
+    using subscription = callback_registry_subscription;
 
     event_dispatcher()
     {
@@ -222,9 +222,10 @@ private:
                                              : index_of_impl<Tag, I + 1, Rest...>::value;
     };
 
-    template <typename Tag, std::size_t I, typename... Rest>
-    struct index_of_impl<Tag, I, Tag, Rest...>
+    template <typename Tag, std::size_t I>
+    struct index_of_impl<Tag, I>
     {
+        static_assert(sizeof(Tag) > 0, "event_dispatcher: Tag is not present in the EventConfigs pack");
         static constexpr std::size_t value = I;
     };
 
