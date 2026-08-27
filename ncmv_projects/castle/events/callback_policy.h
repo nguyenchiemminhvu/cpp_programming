@@ -98,11 +98,8 @@ class single_thread
 public:
     using callback_type = Callback;
 
-    template <typename C,
-              typename = std::enable_if_t<
-                  !std::is_same<std::decay_t<C>, single_thread>::value>>
-    explicit single_thread(C&& cb)
-        noexcept(std::is_nothrow_constructible<Callback, C&&>::value)
+    template <typename C, typename = std::enable_if_t<!std::is_same<std::decay_t<C>, single_thread>::value>>
+    explicit single_thread(C&& cb) noexcept(std::is_nothrow_constructible<Callback, C&&>::value)
         : cb_(std::forward<C>(cb))
     {
     }
@@ -111,7 +108,10 @@ public:
     template <typename... Args>
     bool execute(Args&&... args)
     {
-        if (fired_) return false;
+        if (fired_)
+        {
+            return false;
+        }
         fired_ = true;  // set before invoke so recursive execute() is a no-op
         cb_(std::forward<Args>(args)...);
         return true;
@@ -134,11 +134,8 @@ class concurrent
 public:
     using callback_type = Callback;
 
-    template <typename C,
-              typename = std::enable_if_t<
-                  !std::is_same<std::decay_t<C>, concurrent>::value>>
-    explicit concurrent(C&& cb)
-        noexcept(std::is_nothrow_constructible<Callback, C&&>::value)
+    template <typename C, typename = std::enable_if_t<!std::is_same<std::decay_t<C>, concurrent>::value>>
+    explicit concurrent(C&& cb) noexcept(std::is_nothrow_constructible<Callback, C&&>::value)
         : cb_(std::forward<C>(cb))
     {
     }
@@ -147,10 +144,7 @@ public:
     bool execute(Args&&... args)
     {
         bool expected = false;
-        if (!fired_.compare_exchange_strong(
-                expected, true,
-                std::memory_order_acq_rel,
-                std::memory_order_acquire))
+        if (!fired_.compare_exchange_strong(expected, true, std::memory_order_acq_rel, std::memory_order_acquire))
         {
             return false;
         }
@@ -208,9 +202,7 @@ class single_thread
 public:
     using callback_type = Callback;
 
-    template <typename C,
-              typename = std::enable_if_t<
-                  !std::is_same<std::decay_t<C>, single_thread>::value>>
+    template <typename C, typename = std::enable_if_t<!std::is_same<std::decay_t<C>, single_thread>::value>>
     single_thread(std::size_t n, C&& cb)
         : cb_(std::forward<C>(cb))
         , n_(n == 0U ? 1U : n)
@@ -220,7 +212,10 @@ public:
     template <typename... Args>
     bool execute(Args&&... args)
     {
-        if (++counter_ < n_) return false;
+        if (++counter_ < n_)
+        {
+            return false;
+        }
         counter_ = 0U;
         cb_(std::forward<Args>(args)...);
         return true;
@@ -242,9 +237,7 @@ class concurrent
 public:
     using callback_type = Callback;
 
-    template <typename C,
-              typename = std::enable_if_t<
-                  !std::is_same<std::decay_t<C>, concurrent>::value>>
+    template <typename C, typename = std::enable_if_t<!std::is_same<std::decay_t<C>, concurrent>::value>>
     concurrent(std::size_t n, C&& cb)
         : cb_(std::forward<C>(cb))
         , n_(n == 0U ? 1U : n)
@@ -255,7 +248,10 @@ public:
     bool execute(Args&&... args)
     {
         const std::size_t prev = counter_.fetch_add(1U, std::memory_order_relaxed);
-        if (((prev + 1U) % n_) != 0U) return false;
+        if (((prev + 1U) % n_) != 0U)
+        {
+            return false;
+        }
         cb_(std::forward<Args>(args)...);
         return true;
     }
@@ -320,9 +316,7 @@ public:
     using callback_type = Callback;
 
     // Construct without an initial value; the first execute() always fires.
-    template <typename C,
-              typename = std::enable_if_t<
-                  !std::is_same<std::decay_t<C>, single_thread>::value>>
+    template <typename C, typename = std::enable_if_t<!std::is_same<std::decay_t<C>, single_thread>::value>>
     explicit single_thread(C&& cb)
         : cb_(std::forward<C>(cb))
     {
@@ -339,7 +333,10 @@ public:
     template <typename U>
     bool execute(U&& new_value)
     {
-        if (last_.has_value() && (*last_ == new_value)) return false;
+        if (last_.has_value() && (*last_ == new_value))
+        {
+            return false;
+        }
         last_.emplace(std::forward<U>(new_value));
         cb_(*last_);
         return true;
@@ -368,7 +365,9 @@ make_policy_st(V&& initial, C&& cb)
 {
     return single_thread<typename std::decay<V>::type,
                          typename std::decay<C>::type>(
-        std::forward<V>(initial), std::forward<C>(cb));
+        std::forward<V>(initial),
+        std::forward<C>(cb)
+    );
 }
 
 // Factory without initial value; T must be given explicitly.
@@ -401,8 +400,7 @@ public:
     using time_point    = typename Clock::time_point;
 
     template <typename Rep, typename Period, typename C,
-              typename = std::enable_if_t<
-                  !std::is_same<std::decay_t<C>, single_thread>::value>>
+              typename = std::enable_if_t<!std::is_same<std::decay_t<C>, single_thread>::value>>
     single_thread(std::chrono::duration<Rep, Period> interval, C&& cb)
         : cb_(std::forward<C>(cb))
         , interval_(std::chrono::duration_cast<duration>(interval))
@@ -413,7 +411,10 @@ public:
     bool execute(Args&&... args)
     {
         const time_point now = Clock::now();
-        if (last_.has_value() && (now - *last_) < interval_) return false;
+        if (last_.has_value() && (now - *last_) < interval_)
+        {
+            return false;
+        }
         last_ = now;
         cb_(std::forward<Args>(args)...);
         return true;
@@ -441,8 +442,7 @@ template <typename Rep, typename Period, typename C>
 single_thread<typename std::decay<C>::type>
 make_policy_st(std::chrono::duration<Rep, Period> interval, C&& cb)
 {
-    return single_thread<typename std::decay<C>::type>(
-        interval, std::forward<C>(cb));
+    return single_thread<typename std::decay<C>::type>(interval, std::forward<C>(cb));
 }
 
 // Same as make_policy_st but with a user-supplied clock type.
@@ -450,8 +450,7 @@ template <typename Clock, typename Rep, typename Period, typename C>
 single_thread<typename std::decay<C>::type, Clock>
 make_policy_st_with_clock(std::chrono::duration<Rep, Period> interval, C&& cb)
 {
-    return single_thread<typename std::decay<C>::type, Clock>(
-        interval, std::forward<C>(cb));
+    return single_thread<typename std::decay<C>::type, Clock>(interval, std::forward<C>(cb));
 }
 
 } // namespace throttle
@@ -475,8 +474,7 @@ public:
     using time_point    = typename Clock::time_point;
 
     template <typename Rep, typename Period, typename C,
-              typename = std::enable_if_t<
-                  !std::is_same<std::decay_t<C>, single_thread>::value>>
+              typename = std::enable_if_t<!std::is_same<std::decay_t<C>, single_thread>::value>>
     single_thread(std::chrono::duration<Rep, Period> period, C&& cb)
         : cb_(std::forward<C>(cb))
         , period_(std::chrono::duration_cast<duration>(period))
@@ -522,8 +520,7 @@ template <typename Rep, typename Period, typename C>
 single_thread<typename std::decay<C>::type>
 make_policy_st(std::chrono::duration<Rep, Period> period, C&& cb)
 {
-    return single_thread<typename std::decay<C>::type>(
-        period, std::forward<C>(cb));
+    return single_thread<typename std::decay<C>::type>(period, std::forward<C>(cb));
 }
 
 // Same as make_policy_st but with a user-supplied clock type.
@@ -531,8 +528,7 @@ template <typename Clock, typename Rep, typename Period, typename C>
 single_thread<typename std::decay<C>::type, Clock>
 make_policy_st_with_clock(std::chrono::duration<Rep, Period> period, C&& cb)
 {
-    return single_thread<typename std::decay<C>::type, Clock>(
-        period, std::forward<C>(cb));
+    return single_thread<typename std::decay<C>::type, Clock>(period, std::forward<C>(cb));
 }
 
 } // namespace periodic
