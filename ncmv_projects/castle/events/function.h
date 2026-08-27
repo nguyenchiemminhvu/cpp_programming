@@ -43,6 +43,81 @@ private:
 };
 
 // -----------------------------------------------------------------------------
+// Runtime-bound functor / lambda (owns the callable by value).
+// The callable (functor object or lambda closure) is stored as a member,
+// so this variant works with lambdas that capture state, std::bind results,
+// or any object that provides operator()(Args...).
+//
+//   int x = 10;
+//   auto lam = [x](int a, float b) { /* use x */ };
+//   castle::events::function_f<decltype(lam), int, float> cb(std::move(lam));
+//   cb(1, 2.0f);
+//
+// Because the closure type of a lambda is anonymous, prefer the make_
+// factory below to deduce it:
+//
+//   auto cb = castle::events::make_function_f<int, float>(
+//       [x](int a, float b) { /* ... */ });
+// -----------------------------------------------------------------------------
+template <typename Callable, typename... Args>
+class function_f : public i_function<Args...>
+{
+public:
+    using callable_type = Callable;
+    using param_types   = std::tuple<Args...>;
+
+    // Perfect-forward construction so both lvalue functors and rvalue
+    // lambda closures can be stored efficiently.
+    template <typename C, typename = std::enable_if_t<!std::is_same_v<std::decay_t<C>, function_f>>>
+    explicit function_f(C&& c)
+        : callable_(std::forward<C>(c)) {}
+
+    void operator()(Args... args) override
+    {
+        (void)callable_(std::forward<Args>(args)...);
+    }
+
+private:
+    Callable callable_;
+};
+
+// Deduction helper: caller only needs to spell out the signature (Args...),
+// the closure/functor type is deduced.
+template <typename... Args, typename Callable>
+auto make_function_f(Callable&& c)
+{
+    return function_f<std::decay_t<Callable>, Args...>(std::forward<Callable>(c));
+}
+
+// -----------------------------------------------------------------------------
+// Runtime-bound functor by reference (does NOT own the callable).
+// Use when the functor is large, non-copyable, or you explicitly want shared
+// state. Caller must ensure the referenced functor outlives this callback.
+//
+//   struct BigFunctor { void operator()(int); /* heavy state */ };
+//   BigFunctor f;
+//   castle::events::function_fr<BigFunctor, int> cb(f);
+//   cb(7);
+// -----------------------------------------------------------------------------
+template <typename Callable, typename... Args>
+class function_fr : public i_function<Args...>
+{
+public:
+    using callable_type = Callable;
+    using param_types   = std::tuple<Args...>;
+
+    explicit function_fr(Callable& c) : callable_(&c) {}
+
+    void operator()(Args... args) override
+    {
+        (void)(*callable_)(std::forward<Args>(args)...);
+    }
+
+private:
+    Callable* callable_;
+};
+
+// -----------------------------------------------------------------------------
 // Runtime-bound member function.
 // Object pointer and member function pointer are stored as members => one level
 // of indirection per call.
@@ -92,6 +167,32 @@ public:
     void operator()(Args... args) override
     {
         (void)(*Func)(std::forward<Args>(args)...);
+    }
+};
+
+// -----------------------------------------------------------------------------
+// Compile-time-bound functor (zero storage).
+// Useful for stateless lambdas wrapped in a named type, or functors that are
+// default-constructible and pure. The callable is instantiated on each call;
+// for stateless closures the compiler collapses this to a direct call.
+//
+//   struct Add { void operator()(int a, int b) { /* ... */ } };
+//   castle::events::function_ct_f<Add, int, int> cb;
+//   cb(1, 2);
+// -----------------------------------------------------------------------------
+template <typename Callable, typename... Args>
+class function_ct_f : public i_function<Args...>
+{
+    static_assert(std::is_default_constructible_v<Callable>,
+                  "function_ct_f requires a default-constructible callable "
+                  "(stateless functor or captureless lambda wrapped in a type).");
+public:
+    using callable_type = Callable;
+    using param_types   = std::tuple<Args...>;
+
+    void operator()(Args... args) override
+    {
+        Callable{}(std::forward<Args>(args)...);
     }
 };
 
