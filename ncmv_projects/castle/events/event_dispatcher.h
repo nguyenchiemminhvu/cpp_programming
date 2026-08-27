@@ -71,9 +71,7 @@ enum class event_dispatcher_error : std::uint8_t
 template <typename... EventConfigs>
 class event_dispatcher
 {
-    static_assert(
-        sizeof...(EventConfigs) > 0,
-        "event_dispatcher requires at least one event_config");
+    static_assert(sizeof...(EventConfigs) > 0, "event_dispatcher requires at least one event_config");
 
 public:
     using error = event_dispatcher_error;
@@ -123,9 +121,7 @@ public:
     // dispatcher is destroyed).
     // -------------------------------------------------------------------------
     template <typename Tag, typename CallbackPtr>
-    subscription register_callback(
-        CallbackPtr callback,
-        error* out_error = nullptr) noexcept
+    subscription register_callback(CallbackPtr callback, error* out_error = nullptr) noexcept
     {
         // Delegate signature checking to the registry: CallbackPtr must be
         // convertible to the exact i_function<Args...>* expected by Tag.
@@ -221,20 +217,16 @@ private:
     template <typename Tag, std::size_t I, typename First, typename... Rest>
     struct index_of_impl<Tag, I, First, Rest...>
     {
-        static constexpr std::size_t value =
-            std::is_same<typename First::event_tag, Tag>::value
-                ? I
-                : index_of_impl<Tag, I + 1, Rest...>::value;
+        static constexpr std::size_t value = std::is_same<typename First::event_tag, Tag>::value
+                                             ? I
+                                             : index_of_impl<Tag, I + 1, Rest...>::value;
     };
 
     template <typename Tag, std::size_t I>
     struct index_of_impl<Tag, I>
     {
         // Unknown tag: force a hard compile error at the call site.
-        static_assert(
-            sizeof(Tag) == 0,
-            "event_dispatcher: Tag is not present in the EventConfigs pack");
-
+        static_assert(sizeof(Tag) == 0, "event_dispatcher: Tag is not present in the EventConfigs pack");
         static constexpr std::size_t value = I;
     };
 
@@ -246,8 +238,7 @@ private:
 
     // event_config bound to a specific tag.
     template <typename Tag>
-    using config_for =
-        std::tuple_element_t<index_of<Tag>(), std::tuple<EventConfigs...>>;
+    using config_for = std::tuple_element_t<index_of<Tag>(), std::tuple<EventConfigs...>>;
 
     // Direct access to the callback_registry for a specific tag.
     template <typename Tag>
@@ -274,8 +265,7 @@ private:
     }
 
     // Map callback_registry_error to event_dispatcher_error.
-    static constexpr error convert_error(
-        callback_registry_error error_code) noexcept
+    static constexpr error convert_error(callback_registry_error error_code) noexcept
     {
         switch (error_code)
         {

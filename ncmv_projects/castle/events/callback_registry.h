@@ -212,7 +212,8 @@ public:
                 return subscription{
                     this,
                     i,
-                    current_slot.generation};
+                    current_slot.generation
+                };
             }
         }
 
@@ -270,6 +271,16 @@ public:
                 (*callback)(std::forward<Args>(args)...);
             }
         }
+    }
+
+    // -------------------------------------------------------------------------
+    // Convenience operator() overload to allow registry to be called like a
+    // function. This is equivalent to invoke() but may be more natural in some
+    // contexts.
+    // -------------------------------------------------------------------------
+    void operator()(Args... args)
+    {
+        this->invoke(std::forward<Args>(args)...);
     }
 
     // -------------------------------------------------------------------------

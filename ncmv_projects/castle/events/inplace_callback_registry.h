@@ -155,23 +155,14 @@ template <
     typename... Args,
     std::size_t callback_storage_size,
     std::size_t callback_storage_alignment>
-class inplace_callback_registry<
-    max_callback,
-    return_type(Args...),
-    callback_storage_size,
-    callback_storage_alignment> final
+class inplace_callback_registry<max_callback, return_type(Args...), callback_storage_size, callback_storage_alignment> final
     : public i_inplace_unsubscribable
 {
-    static_assert(
-        std::is_void<return_type>::value,
-        "inplace_callback_registry requires void callback return type");
+    static_assert(std::is_void<return_type>::value,
+                  "inplace_callback_registry requires void callback return type");
 
 public:
-    using callback_type =
-        inplace_function<
-            return_type(Args...),
-            callback_storage_size,
-            callback_storage_alignment>;
+    using callback_type = inplace_function<return_type(Args...), callback_storage_size, callback_storage_alignment>;
 
     using subscription = inplace_callback_subscription;
     using error = inplace_callback_registry_error;
@@ -192,9 +183,7 @@ public:
     // Returns a subscription handle. On failure the returned handle is
     // !valid() and out_error (if provided) is set.
     // -------------------------------------------------------------------------
-    subscription subscribe(
-        callback_type&& callback,
-        error* out_error = nullptr)
+    subscription subscribe(callback_type&& callback, error* out_error = nullptr)
     {
         if (!callback)
         {
@@ -223,7 +212,8 @@ public:
                 return subscription{
                     this,
                     i,
-                    current_slot.generation};
+                    current_slot.generation
+                };
             }
         }
 
@@ -239,34 +229,19 @@ public:
     // Wraps the callable into callback_type and delegates to the primary
     // subscribe(callback_type&&) above.
     // -------------------------------------------------------------------------
-    template <
-        typename callback_t,
-        typename = std::enable_if_t<
-            !std::is_same<
-                std::decay_t<callback_t>,
-                callback_type>::value &&
-            !std::is_same<
-                std::decay_t<callback_t>,
-                subscription>::value>>
-    subscription subscribe(
-        callback_t&& callback,
-        error* out_error = nullptr)
+    template <typename callback_t, typename = std::enable_if_t<!std::is_same<std::decay_t<callback_t>, callback_type>::value &&
+                                                               !std::is_same<std::decay_t<callback_t>, subscription>::value>>
+    subscription subscribe(callback_t&& callback, error* out_error = nullptr)
     {
-        callback_type callback_wrapper{
-            std::forward<callback_t>(callback)};
-
-        return subscribe(
-            std::move(callback_wrapper),
-            out_error);
+        callback_type callback_wrapper{std::forward<callback_t>(callback)};
+        return subscribe(std::move(callback_wrapper), out_error);
     }
 
     // -------------------------------------------------------------------------
     // Type-erased unsubscribe entry point used by inplace_callback_subscription.
     // Not intended for direct client use — prefer subscription::unsubscribe().
     // -------------------------------------------------------------------------
-    error unsubscribe_slot(
-        std::size_t index,
-        std::uint32_t generation) noexcept override
+    error unsubscribe_slot(std::size_t index, std::uint32_t generation) noexcept override
     {
         if (index >= max_callback)
         {
@@ -305,10 +280,19 @@ public:
 
             if (current_slot.active && current_slot.callback)
             {
-                current_slot.callback(
-                    std::forward<Args>(args)...);
+                current_slot.callback(std::forward<Args>(args)...);
             }
         }
+    }
+
+    // -------------------------------------------------------------------------
+    // Convenience operator() overload to allow registry to be called like a
+    // function. This is equivalent to invoke() but may be more natural in some
+    // contexts.
+    // -------------------------------------------------------------------------
+    void operator()(Args... args)
+    {
+        this->invoke(std::forward<Args>(args)...);
     }
 
     // -------------------------------------------------------------------------

@@ -59,15 +59,9 @@ struct inplace_event_config
 
     static constexpr std::size_t max_callbacks = MaxCallback;
     static constexpr std::size_t callback_storage_size = CallbackStorageSize;
-    static constexpr std::size_t callback_storage_alignment =
-        CallbackStorageAlignment;
+    static constexpr std::size_t callback_storage_alignment = CallbackStorageAlignment;
 
-    using registry_type =
-        inplace_callback_registry<
-            MaxCallback,
-            void(Args...),
-            CallbackStorageSize,
-            CallbackStorageAlignment>;
+    using registry_type = inplace_callback_registry<MaxCallback, void(Args...), CallbackStorageSize, CallbackStorageAlignment>;
 
     // The registry is stored by value so the whole inplace_event_dispatcher
     // can hold a tuple<inplace_event_config...> with no heap and no
