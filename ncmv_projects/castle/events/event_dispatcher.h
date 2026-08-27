@@ -222,11 +222,9 @@ private:
                                              : index_of_impl<Tag, I + 1, Rest...>::value;
     };
 
-    template <typename Tag, std::size_t I>
-    struct index_of_impl<Tag, I>
+    template <typename Tag, std::size_t I, typename... Rest>
+    struct index_of_impl<Tag, I, Tag, Rest...>
     {
-        // Unknown tag: force a hard compile error at the call site.
-        static_assert(sizeof(Tag) == 0, "event_dispatcher: Tag is not present in the EventConfigs pack");
         static constexpr std::size_t value = I;
     };
 
