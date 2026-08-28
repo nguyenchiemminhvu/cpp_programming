@@ -22,9 +22,26 @@ static constexpr std::size_t index_of() noexcept
     return index_of_impl<Tag, 0, Types...>::value;
 }
 
+// ------------------------------
+
+template <typename... Types>
+struct no_duplicates;
+
+template <>
+struct no_duplicates<> : std::true_type {};
+
+template <typename Head, typename... Tail>
+struct no_duplicates<Head, Tail...>
+{
+    static constexpr bool value = (!std::is_same<Head, Tail>::value && ...) && no_duplicates<Tail...>::value;
+};
+
 int main()
 {
     std::cout << index_of<int, double, char, int>() << std::endl;
+
+    std::cout << std::boolalpha << no_duplicates<int, double, char>::value << std::endl;
+    std::cout << std::boolalpha << no_duplicates<int, double, int>::value << std::endl;
 
     return 0;
 }
