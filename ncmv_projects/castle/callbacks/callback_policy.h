@@ -116,7 +116,6 @@ private:
 
 
 // Concurrent variant: atomic CAS makes at most one caller win the race.
-// No mutex, no dynamic allocation.
 template <typename Callback>
 class concurrent
 {
@@ -177,6 +176,270 @@ concurrent<typename std::decay<C>::type> make_policy_concurrent(C&& cb)
 }
 
 } // namespace once
+
+
+// -----------------------------------------------------------------------------
+// armed_window - fire the callback AT MOST ONCE, and only while the object is
+// still inside its "validity window". The window opens at construction (or on
+// reset()/rearm()) and closes `duration` later. Semantics:
+//
+//     [ t0 .............. t0 + duration ]   <- armed
+//                                        \___ after this point: disarmed,
+//                                             execute() is a permanent no-op
+//                                             until rearm()/reset() is called.
+//
+//   * Before the deadline AND not yet fired -> execute() fires exactly once,
+//     latches the "fired" state and disarms further calls.
+//   * Before the deadline but already fired -> execute() returns false.
+//   * After the deadline (whether fired or not) -> execute() returns false
+//     and remains false forever (deterministic timeout latch).
+// -----------------------------------------------------------------------------
+namespace armed_window
+{
+
+// State latch used by the concurrent variant. Encoded in a single atomic so
+// the "check + fire" transition is a lock-free CAS. The single_thread variant
+// tracks the same states in a plain enum.
+enum class state : std::uint8_t
+{
+    armed    = 0, // window open, callback has not fired yet
+    fired    = 1, // callback fired inside the window, disarmed
+    expired  = 2  // window closed without firing, disarmed
+};
+
+
+// Non-thread-safe variant. Cheapest option; use when execute() is only ever
+// pumped from a single thread (typical for a main loop / cooperative
+// scheduler).
+template <typename Callback, typename Clock = std::chrono::steady_clock>
+class single_thread
+{
+public:
+    using callback_type = Callback;
+    using clock         = Clock;
+    using duration      = typename Clock::duration;
+    using time_point    = typename Clock::time_point;
+
+    template <typename Rep, typename Period, typename C,
+              typename = std::enable_if_t<!std::is_same<std::decay_t<C>, single_thread>::value>>
+    single_thread(std::chrono::duration<Rep, Period> window, C&& cb)
+        : cb_(std::forward<C>(cb))
+        , duration_(std::chrono::duration_cast<duration>(window))
+        , deadline_(Clock::now() + duration_)
+        , state_(state::armed)
+    {
+    }
+
+    // Returns true iff the callback was actually invoked by this call.
+    // Post-conditions:
+    //   * state_ == fired   if the callback ran successfully.
+    //   * state_ == expired if the deadline was already past and we had not
+    //                       fired yet (a lazy transition — no timer needed).
+    //   * state_ unchanged  if we were already fired or already expired.
+    template <typename... Args>
+    bool execute(Args&&... args)
+    {
+        if (state_ != state::armed)
+        {
+            return false;
+        }
+
+        if (Clock::now() >= deadline_)
+        {
+            // Deadline elapsed before the first successful fire: latch as
+            // expired so subsequent execute() calls are constant-time no-ops.
+            state_ = state::expired;
+            return false;
+        }
+
+        state_ = state::fired; // set before invoke so recursive execute() is a no-op
+        cb_(std::forward<Args>(args)...);
+        return true;
+    }
+
+    // Open a fresh window of the SAME duration starting from now. Also clears
+    // any prior fired/expired latch. Equivalent to "re-arm the one-shot".
+    void reset() noexcept
+    {
+        deadline_ = Clock::now() + duration_;
+        state_    = state::armed;
+    }
+
+    // Open a fresh window of a NEW duration starting from now.
+    template <typename Rep, typename Period>
+    void rearm(std::chrono::duration<Rep, Period> window) noexcept
+    {
+        duration_ = std::chrono::duration_cast<duration>(window);
+        deadline_ = Clock::now() + duration_;
+        state_    = state::armed;
+    }
+
+    // Force the window closed WITHOUT invoking the callback. Useful to cancel
+    // a pending one-shot when an external condition already handled it.
+    void expire() noexcept
+    {
+        if (state_ == state::armed)
+        {
+            state_ = state::expired;
+        }
+    }
+
+    bool armed()    const noexcept { return state_ == state::armed; }
+    bool fired()    const noexcept { return state_ == state::fired; }
+    bool expired()  const noexcept { return state_ == state::expired; }
+
+    duration   window()   const noexcept { return duration_; }
+    time_point deadline() const noexcept { return deadline_; }
+
+private:
+    Callback   cb_;
+    duration   duration_;
+    time_point deadline_;
+    state      state_;
+};
+
+
+// Concurrent variant: the "armed -> fired / expired" transition is a single
+// atomic CAS. At most one caller ever runs the callback,
+// even under simultaneous execute() calls from N threads.
+template <typename Callback, typename Clock = std::chrono::steady_clock>
+class concurrent
+{
+public:
+    using callback_type = Callback;
+    using clock         = Clock;
+    using duration      = typename Clock::duration;
+    using time_point    = typename Clock::time_point;
+
+    template <typename Rep, typename Period, typename C,
+              typename = std::enable_if_t<!std::is_same<std::decay_t<C>, concurrent>::value>>
+    concurrent(std::chrono::duration<Rep, Period> window, C&& cb)
+        : cb_(std::forward<C>(cb))
+        , duration_(std::chrono::duration_cast<duration>(window))
+        , deadline_(Clock::now() + duration_)
+        , state_(state::armed)
+    {
+    }
+
+    template <typename... Args>
+    bool execute(Args&&... args)
+    {
+        state expected = state_.load(std::memory_order_acquire);
+        if (expected != state::armed)
+        {
+            return false;
+        }
+
+        if (Clock::now() >= deadline_)
+        {
+            // Best-effort latch to expired. If another thread already won the
+            // race (fired or expired), we simply observe that and return.
+            state_.compare_exchange_strong(expected, state::expired,
+                                           std::memory_order_acq_rel,
+                                           std::memory_order_acquire);
+            return false;
+        }
+
+        // Try to claim the single fire slot atomically. Only the winning
+        // thread actually invokes the callback.
+        if (!state_.compare_exchange_strong(expected, state::fired,
+                                            std::memory_order_acq_rel,
+                                            std::memory_order_acquire))
+        {
+            return false;
+        }
+
+        cb_(std::forward<Args>(args)...);
+        return true;
+    }
+
+    // NOTE: reset()/rearm()/expire() are intended for coordination points
+    // (e.g. between "epochs") where the caller guarantees no concurrent
+    // execute() is in flight. They mirror the ST API for symmetry.
+    void reset() noexcept
+    {
+        deadline_ = Clock::now() + duration_;
+        state_.store(state::armed, std::memory_order_release);
+    }
+
+    template <typename Rep, typename Period>
+    void rearm(std::chrono::duration<Rep, Period> window) noexcept
+    {
+        duration_ = std::chrono::duration_cast<duration>(window);
+        deadline_ = Clock::now() + duration_;
+        state_.store(state::armed, std::memory_order_release);
+    }
+
+    void expire() noexcept
+    {
+        state expected = state::armed;
+        state_.compare_exchange_strong(expected, state::expired,
+                                       std::memory_order_acq_rel,
+                                       std::memory_order_acquire);
+    }
+
+    bool armed()   const noexcept { return state_.load(std::memory_order_acquire) == state::armed; }
+    bool fired()   const noexcept { return state_.load(std::memory_order_acquire) == state::fired; }
+    bool expired() const noexcept { return state_.load(std::memory_order_acquire) == state::expired; }
+
+    duration   window()   const noexcept { return duration_; }
+    time_point deadline() const noexcept { return deadline_; }
+
+private:
+    Callback            cb_;
+    duration            duration_;
+    time_point          deadline_;
+    std::atomic<state>  state_;
+};
+
+
+// Factory using the default clock (std::chrono::steady_clock)
+// ("st" = single_thread variant).
+//
+//   using namespace std::chrono_literals;
+//   auto ack = callback_policy::armed_window::make_policy_st(200ms,
+//                  []{ send_ack(); });
+//
+//   // In the event loop:
+//   ack.execute();   // fires the first time, latches to "fired"
+//   ack.execute();   // returns false (already fired)
+//   ...
+//   // 200ms later, if execute() had never succeeded:
+//   ack.execute();   // returns false, permanently latched to "expired"
+template <typename Rep, typename Period, typename C>
+single_thread<typename std::decay<C>::type>
+make_policy_st(std::chrono::duration<Rep, Period> window, C&& cb)
+{
+    return single_thread<typename std::decay<C>::type>(window, std::forward<C>(cb));
+}
+
+// Same as make_policy_st but with a user-supplied clock type.
+template <typename Clock, typename Rep, typename Period, typename C>
+single_thread<typename std::decay<C>::type, Clock>
+make_policy_st_with_clock(std::chrono::duration<Rep, Period> window, C&& cb)
+{
+    return single_thread<typename std::decay<C>::type, Clock>(window, std::forward<C>(cb));
+}
+
+// Factory for the atomic-based concurrent variant.
+//
+//   auto ack = callback_policy::armed_window::make_policy_concurrent(
+//                  50ms, []{ send_ack(); });
+template <typename Rep, typename Period, typename C>
+concurrent<typename std::decay<C>::type>
+make_policy_concurrent(std::chrono::duration<Rep, Period> window, C&& cb)
+{
+    return concurrent<typename std::decay<C>::type>(window, std::forward<C>(cb));
+}
+
+template <typename Clock, typename Rep, typename Period, typename C>
+concurrent<typename std::decay<C>::type, Clock>
+make_policy_concurrent_with_clock(std::chrono::duration<Rep, Period> window, C&& cb)
+{
+    return concurrent<typename std::decay<C>::type, Clock>(window, std::forward<C>(cb));
+}
+
+} // namespace armed_window
 
 
 // -----------------------------------------------------------------------------
