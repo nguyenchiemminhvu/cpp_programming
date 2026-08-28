@@ -1,7 +1,7 @@
 #pragma once
 
-#include "../callbacks/function.h"
-#include "../callbacks/callback_registry.h"
+#include "../callbacks/inplace_function.h"
+#include "../callbacks/inplace_callback_registry.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -9,10 +9,10 @@
 #include <type_traits>
 #include <utility>
 
-using castle::callbacks::i_function;
-using castle::callbacks::callback_registry;
-using castle::callbacks::callback_registry_error;
-using castle::callbacks::callback_registry_subscription;
+using castle::callbacks::inplace_function;
+using castle::callbacks::inplace_callback_registry;
+using castle::callbacks::inplace_callback_registry_error;
+using castle::callbacks::inplace_callback_subscription;
 
 namespace castle
 {
@@ -20,22 +20,22 @@ namespace events
 {
 
 // -----------------------------------------------------------------------------
-// Error codes returned by tick_timer operations.
+// Error codes returned by inplace_tick_timer operations.
 // -----------------------------------------------------------------------------
-enum class tick_timer_error : std::uint8_t
+enum class inplace_tick_timer_error : std::uint8_t
 {
     ok = 0,
     full,                  // callback registry full
-    invalid_callback,      // null callback pointer
+    invalid_callback,      // null / empty callback
     invalid_subscription,  // stale unsubscribe
     invalid_period,        // period == 0 for a periodic / repeating timer
     not_configured         // start() called before set_period()
 };
 
 // -----------------------------------------------------------------------------
-// Repeat mode for tick_timer.
+// Repeat mode for inplace_tick_timer.
 // -----------------------------------------------------------------------------
-enum class tick_timer_mode : std::uint8_t
+enum class inplace_tick_timer_mode : std::uint8_t
 {
     one_shot = 0,   // fire once, then stop
     periodic,       // fire forever until stop()
@@ -43,32 +43,31 @@ enum class tick_timer_mode : std::uint8_t
 };
 
 // -----------------------------------------------------------------------------
-// tick_timer - fixed-capacity, heap-free, tick-driven software timer that
-// BORROWS its callbacks via non-owning i_function<>* pointers.
+// inplace_tick_timer - fixed-capacity, heap-free, tick-driven software timer
+// that OWNS its callbacks by value (via inplace_callback_registry).
 //
 // Model:
-//   - Callback signature is void() by design. A timeout event carries no
-//     payload; state lives inside the concrete function/function_m/function_ct variant (see function.h).
+//   - Callback signature is void() by design: a timeout event carries no
+//     payload; state must live in the captured closure / bound object.
 //   - The timer is a passive accumulator. It does not read any clock and
-//     does not own a thread. The tick source (ISR / RTOS tick / event loop)
+//     does not own a thread. The tick source (ISR / RTOS task / event loop)
 //     drives it via on_tick(elapsed_ticks).
 //
 // Template parameters:
-//   MaxCallback - max concurrent subscribers.
-//   TickType    - unsigned integer used for period / counter (default
-//                 std::uint32_t).
+//   MaxCallback              - max concurrent subscribers.
+//   CallbackStorageSize      - inplace_function SBO size per callback.
+//   CallbackStorageAlignment - inplace_function SBO alignment per callback.
+//   TickType                 - unsigned integer used for period / counter.
+//                              Default std::uint32_t.
 //
 // Usage:
-//   void on_timeout() { /* ... */ }
-//   castle::callbacks::function_ct<&on_timeout> cb;      // zero storage
-//
-//   castle::events::tick_timer<4> t;
-//   t.set_period(100);                                    // 100 ticks
-//   auto sub = t.register_callback(&cb);
-//   t.start(castle::events::tick_timer_mode::periodic);
+//   castle::events::inplace_tick_timer<4> t;
+//   t.set_period(100);                                       // 100 ticks
+//   auto sub = t.register_callback([]{ /* on timeout */ });
+//   t.start(castle::events::inplace_tick_timer_mode::periodic);
 //
 //   // From SysTick / RTOS tick / event loop:
-//   t.on_tick(1);                                         // advance 1 tick
+//   t.on_tick(1);                                            // advance 1 tick
 //
 //   // Later:
 //   sub.unsubscribe();
@@ -76,32 +75,37 @@ enum class tick_timer_mode : std::uint8_t
 // -----------------------------------------------------------------------------
 template <
     std::size_t MaxCallback,
+    std::size_t CallbackStorageSize = 32,
+    std::size_t CallbackStorageAlignment = alignof(std::max_align_t),
     typename TickType = std::uint32_t>
-class tick_timer
+class inplace_tick_timer
 {
     static_assert(MaxCallback > 0,
-                  "tick_timer requires MaxCallback >= 1");
+                  "inplace_tick_timer requires MaxCallback >= 1");
     static_assert(std::is_unsigned<TickType>::value,
-                  "tick_timer requires an unsigned TickType");
+                  "inplace_tick_timer requires an unsigned TickType");
 
 public:
     using tick_type = TickType;
-    using error = tick_timer_error;
-    using mode = tick_timer_mode;
-    using callback_type = i_function<>;                              // void()
-    using subscription = callback_registry_subscription;
-    using registry_type = callback_registry<MaxCallback, void()>;
+    using error = inplace_tick_timer_error;
+    using mode = inplace_tick_timer_mode;
+    using subscription = inplace_callback_subscription;
+    using registry_type = inplace_callback_registry<
+        MaxCallback,
+        void(),
+        CallbackStorageSize,
+        CallbackStorageAlignment>;
 
-    tick_timer() = default;
-    ~tick_timer() = default;
+    inplace_tick_timer() = default;
+    ~inplace_tick_timer() = default;
 
-    // Non-copyable, non-movable. Registry identity (its i_unsubscribable*
-    // address) is embedded in outstanding subscription handles.
-    tick_timer(const tick_timer&) = delete;
-    tick_timer& operator=(const tick_timer&) = delete;
+    // Non-copyable, non-movable. Registry embeds an unsubscribable identity
+    // that outstanding subscriptions reference by address.
+    inplace_tick_timer(const inplace_tick_timer&) = delete;
+    inplace_tick_timer& operator=(const inplace_tick_timer&) = delete;
 
-    tick_timer(tick_timer&&) = delete;
-    tick_timer& operator=(tick_timer&&) = delete;
+    inplace_tick_timer(inplace_tick_timer&&) = delete;
+    inplace_tick_timer& operator=(inplace_tick_timer&&) = delete;
 
     // -------------------------------------------------------------------------
     // Configure the timer period in ticks. Safe to call while running: takes
@@ -118,21 +122,24 @@ public:
     }
 
     // -------------------------------------------------------------------------
-    // Register a non-owning callback pointer. The pointed-to i_function<>
-    // instance must outlive the subscription (or the timer, whichever ends
-    // first). Concrete callback variants (function, function_f, function_m,
-    // function_ct, function_ct_m, function_ct_im) are defined in function.h.
+    // Register a timeout callback. Any callable convertible to inplace_function
+    // signature void() is accepted (function pointers, stateless lambdas,
+    // stateful lambdas within the SBO budget, functor objects, etc.).
     //
-    // Returns a subscription handle. On failure the handle is !valid() and
-    // out_error (if provided) is set.
+    // Returns an inplace_callback_subscription. On failure the handle is
+    // !valid() and out_error (if provided) is set.
     // -------------------------------------------------------------------------
+    template <typename Callback>
     subscription register_callback(
-        callback_type* callback,
+        Callback&& callback,
         error* out_error = nullptr) noexcept
     {
-        callback_registry_error inner_error = callback_registry_error::ok;
+        inplace_callback_registry_error inner_error =
+            inplace_callback_registry_error::ok;
 
-        subscription sub = registry_.subscribe(callback, &inner_error);
+        subscription sub = registry_.subscribe(
+            std::forward<Callback>(callback),
+            &inner_error);
 
         if (out_error != nullptr)
         {
@@ -178,7 +185,7 @@ public:
     // -------------------------------------------------------------------------
     // Stop the timer AND reset the tick counter. After stop() the timer is
     // idle: subsequent on_tick() calls are no-ops until start() is called
-    // again. Registered callbacks are preserved (registry is untouched).
+    // again. Registered callbacks are preserved.
     // -------------------------------------------------------------------------
     void stop() noexcept
     {
@@ -198,7 +205,8 @@ public:
     }
 
     // -------------------------------------------------------------------------
-    // Resume a paused timer. No effect if the timer was never configured.
+    // Resume a paused timer. No effect if the timer was never configured,
+    // or if it is currently running.
     // -------------------------------------------------------------------------
     error resume() noexcept
     {
@@ -335,10 +343,8 @@ public:
     }
 
     // -------------------------------------------------------------------------
-    // Remove all registered callback pointers. Outstanding subscription
-    // handles become stale. The pointed-to callback objects themselves are
-    // NOT touched (caller owns their lifetime). Timer running state /
-    // period / counter are untouched.
+    // Remove all registered callbacks. Outstanding subscription handles
+    // become stale. Timer running state / period / counter are untouched.
     // -------------------------------------------------------------------------
     void clear_callbacks() noexcept
     {
@@ -361,22 +367,22 @@ public:
     }
 
 private:
-    // Map callback_registry_error to tick_timer_error.
+    // Map inplace_callback_registry_error to tick_timer_error.
     static constexpr error convert_error(
-        callback_registry_error error_code) noexcept
+        inplace_callback_registry_error error_code) noexcept
     {
         switch (error_code)
         {
-        case callback_registry_error::ok:
+        case inplace_callback_registry_error::ok:
             return error::ok;
 
-        case callback_registry_error::full:
+        case inplace_callback_registry_error::full:
             return error::full;
 
-        case callback_registry_error::invalid_callback:
+        case inplace_callback_registry_error::invalid_callback:
             return error::invalid_callback;
 
-        case callback_registry_error::invalid_subscription:
+        case inplace_callback_registry_error::invalid_subscription:
             return error::invalid_subscription;
         }
 
