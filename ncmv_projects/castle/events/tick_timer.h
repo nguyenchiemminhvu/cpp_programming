@@ -24,7 +24,7 @@ namespace events
 // -----------------------------------------------------------------------------
 enum class tick_timer_error : std::uint8_t
 {
-    ok = 0,
+    ok = 0U,
     full,                  // callback registry full
     invalid_callback,      // null callback pointer
     invalid_subscription,  // stale unsubscribe
@@ -55,8 +55,6 @@ enum class tick_timer_mode : std::uint8_t
 //
 // Template parameters:
 //   MaxCallback - max concurrent subscribers.
-//   TickType    - unsigned integer used for period / counter (default
-//                 std::uint32_t).
 //
 // Usage:
 //   void on_timeout() { /* ... */ }
@@ -74,18 +72,14 @@ enum class tick_timer_mode : std::uint8_t
 //   sub.unsubscribe();
 //   t.stop();
 // -----------------------------------------------------------------------------
-template <
-    std::size_t MaxCallback,
-    typename TickType = std::uint32_t>
+template <std::size_t MaxCallback>
 class tick_timer
 {
-    static_assert(MaxCallback > 0,
+    static_assert(MaxCallback > 0U,
                   "tick_timer requires MaxCallback >= 1");
-    static_assert(std::is_unsigned<TickType>::value,
-                  "tick_timer requires an unsigned TickType");
 
 public:
-    using tick_type = TickType;
+    using tick_type = std::uint32_t;
     using error = tick_timer_error;
     using mode = tick_timer_mode;
     using callback_type = i_function<>;                              // void()
@@ -126,9 +120,7 @@ public:
     // Returns a subscription handle. On failure the handle is !valid() and
     // out_error (if provided) is set.
     // -------------------------------------------------------------------------
-    subscription register_callback(
-        callback_type* callback,
-        error* out_error = nullptr) noexcept
+    subscription register_callback(callback_type* callback, error* out_error = nullptr) noexcept
     {
         callback_registry_error inner_error = callback_registry_error::ok;
 
@@ -152,9 +144,7 @@ public:
     // Any previously accumulated tick counter is cleared. Callbacks are NOT
     // cleared (call clear_callbacks() if that is desired).
     // -------------------------------------------------------------------------
-    error start(
-        mode run_mode = mode::periodic,
-        tick_type repeat_count = 0) noexcept
+    error start(mode run_mode = mode::periodic, tick_type repeat_count = 0) noexcept
     {
         if (period_ == 0)
         {
@@ -168,8 +158,8 @@ public:
 
         mode_ = run_mode;
         repeat_remaining_ = (run_mode == mode::n_repeat)
-            ? repeat_count
-            : static_cast<tick_type>(0);
+                            ? repeat_count
+                            : static_cast<tick_type>(0);
         counter_ = 0;
         running_ = true;
         return error::ok;
@@ -251,27 +241,31 @@ public:
             // Post-fire mode handling.
             switch (mode_)
             {
-            case mode::one_shot:
-                running_ = false;
-                counter_ = 0;
-                break;
-
-            case mode::n_repeat:
-                if (repeat_remaining_ > 0)
-                {
-                    --repeat_remaining_;
-                }
-                if (repeat_remaining_ == 0)
+                case mode::one_shot:
                 {
                     running_ = false;
                     counter_ = 0;
+                    break;
                 }
-                break;
-
-            case mode::periodic:
-            default:
-                // Keep running; loop consumes any remaining accumulated ticks.
-                break;
+                case mode::n_repeat:
+                {
+                    if (repeat_remaining_ > 0)
+                    {
+                        --repeat_remaining_;
+                    }
+                    if (repeat_remaining_ == 0)
+                    {
+                        running_ = false;
+                        counter_ = 0;
+                    }
+                    break;
+                }
+                case mode::periodic:
+                default:
+                {
+                    // Keep running; loop consumes any remaining accumulated ticks.
+                    break;
+                }
             }
         }
     }
@@ -303,8 +297,8 @@ public:
             return 0;
         }
         return (counter_ >= period_)
-            ? static_cast<tick_type>(0)
-            : static_cast<tick_type>(period_ - counter_);
+                ? static_cast<tick_type>(0)
+                : static_cast<tick_type>(period_ - counter_);
     }
 
     mode current_mode() const noexcept
@@ -316,7 +310,9 @@ public:
     // for other modes -> returns 0.
     tick_type repeats_remaining() const noexcept
     {
-        return (mode_ == mode::n_repeat) ? repeat_remaining_ : 0;
+        return (mode_ == mode::n_repeat)
+                ? repeat_remaining_
+                : 0;
     }
 
     std::size_t callback_count() const noexcept
@@ -362,22 +358,26 @@ public:
 
 private:
     // Map callback_registry_error to tick_timer_error.
-    static constexpr error convert_error(
-        callback_registry_error error_code) noexcept
+    static constexpr error convert_error(callback_registry_error error_code) noexcept
     {
         switch (error_code)
         {
-        case callback_registry_error::ok:
-            return error::ok;
-
-        case callback_registry_error::full:
-            return error::full;
-
-        case callback_registry_error::invalid_callback:
-            return error::invalid_callback;
-
-        case callback_registry_error::invalid_subscription:
-            return error::invalid_subscription;
+            case callback_registry_error::ok:
+            {
+                return error::ok;
+            }
+            case callback_registry_error::full:
+            {
+                return error::full;
+            }
+            case callback_registry_error::invalid_callback:
+            {
+                return error::invalid_callback;
+            }
+            case callback_registry_error::invalid_subscription:
+            {
+                return error::invalid_subscription;
+            }
         }
 
         return error::invalid_subscription;
