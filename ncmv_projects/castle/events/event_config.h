@@ -1,8 +1,10 @@
 #pragma once
 
-#include "callback_registry.h"
+#include "../callbacks/callback_registry.h"
 
 #include <cstddef>
+
+using castle::callbacks::callback_registry;
 
 namespace castle
 {

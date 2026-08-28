@@ -1,6 +1,7 @@
 #pragma once
 
-#include "inplace_callback_registry.h"
+#include "../callbacks/inplace_function.h"
+#include "../callbacks/inplace_callback_registry.h"
 #include "inplace_event_config.h"
 
 #include <bitset>
@@ -9,6 +10,11 @@
 #include <tuple>
 #include <type_traits>
 #include <utility>
+
+using castle::callbacks::inplace_function;
+using castle::callbacks::inplace_callback_registry;
+using castle::callbacks::inplace_callback_registry_error;
+using castle::callbacks::inplace_callback_subscription;
 
 namespace castle
 {

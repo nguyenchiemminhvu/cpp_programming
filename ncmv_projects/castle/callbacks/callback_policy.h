@@ -64,24 +64,13 @@
 //                        the compiler can strength-reduce operations on it.
 //   * make_policy_st_with_clock<Clock> - variant of make_policy_st that lets the caller
 //                        override the default std::chrono::steady_clock.
-//
-// Overhead review of the older LibEventCpp::once_event
-// -----------------------------------------------------------------------------
-//   * callables::task<...> == std::function<...> => type-erased, may heap-
-//     allocate when the closure exceeds the SBO.
-//   * once_per_value<T> / once_at_least<T> issue std::make_policy_unique<T>(...) on
-//     every value change / every tick => one allocation per update.
-//   * Callbacks are bound at every call site (call_once(func, args...))
-//     instead of once at construction => extra std::function copy per call.
-//   * once_at_least owns a std::thread => not admissible in most embedded
-//     designs.
-//
-// The types below fix all of the above at compile time.
 // =============================================================================
 
 namespace castle
 {
-namespace callback_policy
+namespace callbacks
+{
+namespace policy
 {
 
 // -----------------------------------------------------------------------------
@@ -533,5 +522,6 @@ make_policy_st_with_clock(std::chrono::duration<Rep, Period> period, C&& cb)
 
 } // namespace periodic
 
-} // namespace callback_policy
+} // namespace policy
+} // namespace callbacks
 } // namespace castle

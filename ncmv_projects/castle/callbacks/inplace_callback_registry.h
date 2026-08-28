@@ -10,7 +10,7 @@
 
 namespace castle
 {
-namespace events
+namespace callbacks
 {
 
 // -----------------------------------------------------------------------------
@@ -346,5 +346,5 @@ private:
     std::size_t active_count_ = 0;
 };
 
-} // namespace events
+} // namespace callbacks
 } // namespace castle

@@ -1,8 +1,8 @@
 #pragma once
 
-#include "callback_registry.h"
+#include "../callbacks/function.h"
+#include "../callbacks/callback_registry.h"
 #include "event_config.h"
-#include "function.h"
 
 #include <bitset>
 #include <cstddef>
@@ -10,6 +10,11 @@
 #include <tuple>
 #include <type_traits>
 #include <utility>
+
+using castle::callbacks::function;
+using castle::callbacks::callback_registry;
+using castle::callbacks::callback_registry_error;
+using castle::callbacks::callback_registry_subscription;
 
 namespace castle
 {
@@ -62,7 +67,7 @@ enum class event_dispatcher_error : std::uint8_t
 //   dispatcher_t dispatcher;
 //
 //   void on_timer(std::uint32_t id, std::uint32_t ts) { ... }
-//   castle::events::function<std::uint32_t, std::uint32_t> cb(&on_timer);
+//   castle::callbacks::function<std::uint32_t, std::uint32_t> cb(&on_timer);
 //
 //   auto sub = dispatcher.register_callback<TimerExpired>(&cb);
 //   dispatcher.dispatch_event<TimerExpired>(42u, 1000u);

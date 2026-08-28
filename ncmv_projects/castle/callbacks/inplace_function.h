@@ -7,6 +7,11 @@
 #include <new>       // placement new
 #include <cassert>
 
+namespace castle
+{
+namespace callbacks
+{
+
 template <typename T,
           std::size_t StorageSize = 64,
           std::size_t StorageAlignment = alignof(std::max_align_t)>
@@ -162,3 +167,6 @@ private:
     copy_ptr_t copy_ptr_ = nullptr;
     move_ptr_t move_ptr_ = nullptr;
 };
+
+} // namespace callbacks
+} // namespace castle

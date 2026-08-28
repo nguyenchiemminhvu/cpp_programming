@@ -5,7 +5,7 @@
 
 namespace castle
 {
-namespace events
+namespace callbacks
 {
 
 // Common interface. All callback variants below derive from this so the caller
@@ -286,5 +286,5 @@ public:
     }
 };
 
-} // namespace events
+} // namespace callbacks
 } // namespace castle
