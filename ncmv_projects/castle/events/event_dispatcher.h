@@ -78,6 +78,32 @@ class event_dispatcher
 {
     static_assert(sizeof...(EventConfigs) > 0, "event_dispatcher requires at least one event_config");
 
+    // -------------------------------------------------------------------------
+    // Compile-time uniqueness check for the EventConfigs... pack.
+    //
+    // Duplicates would silently break the design:
+    //   - index_of<Tag>() always returns the FIRST match, so enable / disable /
+    //     clear operations on the duplicate slot would be unreachable from the
+    //     dispatch_event() side,
+    //   - subscriber_count() and callback_capacity() would report values that
+    //     no longer reflect the real per-event budget.
+    // -------------------------------------------------------------------------
+    template <typename... Configs>
+    struct configs_are_unique;
+
+    template <>
+    struct configs_are_unique<> : std::true_type {};
+
+    template <typename Head, typename... Tail>
+    struct configs_are_unique<Head, Tail...>
+    {
+        static constexpr bool value = ((Head::event_tag != Tail::event_tag) && ...)
+                                     && configs_are_unique<Tail...>::value;
+    };
+
+    static_assert(configs_are_unique<EventConfigs...>::value,
+                  "event_dispatcher: the EventConfigs... pack must not contain duplicate event_tag types");
+
 public:
     using error = event_dispatcher_error;
     using subscription = callback_registry_subscription;

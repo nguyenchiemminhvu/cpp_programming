@@ -49,9 +49,9 @@ enum class inplace_event_dispatcher_error : std::uint8_t
 //     inplace_event_config.
 //
 // Storage:
-//   - A std::tuple<Configs...> holds each inplace_event_config by value;
+//   - A std::tuple<EventConfigs...> holds each inplace_event_config by value;
 //     each config embeds its own inplace_callback_registry.
-//   - A std::bitset<sizeof...(Configs)> tracks per-event enable state.
+//   - A std::bitset<sizeof...(EventConfigs)> tracks per-event enable state.
 //
 // Subscriptions:
 //   - register_callback<Tag>(callable) returns an
@@ -78,12 +78,37 @@ enum class inplace_event_dispatcher_error : std::uint8_t
 //   dispatcher.dispatch_event<TimerExpired>(42u, 1000u);
 //   sub.unsubscribe();
 // -----------------------------------------------------------------------------
-template <typename... Configs>
+template <typename... EventConfigs>
 class inplace_event_dispatcher
 {
-    static_assert(
-        sizeof...(Configs) > 0,
-        "inplace_event_dispatcher requires at least one inplace_event_config");
+    static_assert(sizeof...(EventConfigs) > 0,
+                  "inplace_event_dispatcher requires at least one inplace_event_config");
+
+    // -------------------------------------------------------------------------
+    // Compile-time uniqueness check for the EventConfigs... pack.
+    //
+    // Duplicates would silently break the design:
+    //   - index_of<Tag>() always returns the FIRST match, so enable / disable /
+    //     clear operations on the duplicate slot would be unreachable from the
+    //     dispatch_event() side,
+    //   - subscriber_count() and callback_capacity() would report values that
+    //     no longer reflect the real per-event budget.
+    // -------------------------------------------------------------------------
+    template <typename... Configs>
+    struct configs_are_unique;
+
+    template <>
+    struct configs_are_unique<> : std::true_type {};
+
+    template <typename Head, typename... Tail>
+    struct configs_are_unique<Head, Tail...>
+    {
+        static constexpr bool value = ((Head::event_tag != Tail::event_tag) && ...)
+                                     && configs_are_unique<Tail...>::value;
+    };
+
+    static_assert(configs_are_unique<EventConfigs...>::value,
+                  "event_dispatcher: the EventConfigs... pack must not contain duplicate event_tag types");
 
 public:
     using error = inplace_event_dispatcher_error;
@@ -111,7 +136,7 @@ public:
     // -------------------------------------------------------------------------
     static constexpr std::size_t event_capacity() noexcept
     {
-        return sizeof...(Configs);
+        return sizeof...(EventConfigs);
     }
 
     template <typename Tag>
@@ -226,7 +251,7 @@ public:
     // -------------------------------------------------------------------------
     void clear() noexcept
     {
-        clear_all_impl(std::index_sequence_for<Configs...>{});
+        clear_all_impl(std::index_sequence_for<EventConfigs...>{});
     }
 
     template <typename Tag>
@@ -255,20 +280,20 @@ private:
     template <typename Tag, std::size_t I>
     struct index_of_impl<Tag, I>
     {
-        static_assert(sizeof(Tag) > 0, "inplace_event_dispatcher: Tag is not present in the Configs pack");
+        static_assert(sizeof(Tag) > 0, "inplace_event_dispatcher: Tag is not present in the EventConfigs pack");
         static constexpr std::size_t value = I;
     };
 
     template <typename Tag>
     static constexpr std::size_t index_of() noexcept
     {
-        return index_of_impl<Tag, 0, Configs...>::value;
+        return index_of_impl<Tag, 0, EventConfigs...>::value;
     }
 
     // inplace_event_config bound to a specific tag.
     template <typename Tag>
     using config_for =
-        std::tuple_element_t<index_of<Tag>(), std::tuple<Configs...>>;
+        std::tuple_element_t<index_of<Tag>(), std::tuple<EventConfigs...>>;
 
     // Direct access to the inplace_callback_registry for a specific tag.
     template <typename Tag>
@@ -320,10 +345,10 @@ private:
     // Tuple of inplace_event_config instances — each embeds its own
     // inplace_callback_registry sized independently. This is the whole
     // storage for the dispatcher.
-    std::tuple<Configs...> configs_{};
+    std::tuple<EventConfigs...> configs_{};
 
     // Per-event enable/disable flags, indexed by index_of<Tag>().
-    std::bitset<sizeof...(Configs)> enabled_{};
+    std::bitset<sizeof...(EventConfigs)> enabled_{};
 };
 
 } // namespace events
