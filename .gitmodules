@@ -28,3 +28,6 @@
 [submodule "ncmv_projects/gnss_io_helper"]
 	path = ncmv_projects/gnss_io_helper
 	url = git@github.com:nguyenchiemminhvu/gnss_io_helper.git
+[submodule "ncmv_projects/castle"]
+	path = ncmv_projects/castle
+	url = git@github.com:nguyenchiemminhvu/castle.git
