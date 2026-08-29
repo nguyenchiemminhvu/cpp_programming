@@ -36,12 +36,23 @@ struct no_duplicates<Head, Tail...>
     static constexpr bool value = (!std::is_same<Head, Tail>::value && ...) && no_duplicates<Tail...>::value;
 };
 
+// -----------------------------
+
+template <typename T, typename... Types>
+struct is_one_of
+{
+    static constexpr bool value = ((std::is_same<T, Types>::value) || ...);
+};
+
 int main()
 {
     std::cout << index_of<int, double, char, int>() << std::endl;
 
     std::cout << std::boolalpha << no_duplicates<int, double, char>::value << std::endl;
     std::cout << std::boolalpha << no_duplicates<int, double, int>::value << std::endl;
+
+    std::cout << std::boolalpha << is_one_of<int, double, char, int>::value << std::endl;
+    std::cout << std::boolalpha << is_one_of<float, double, char, int>::value << std::endl;
 
     return 0;
 }
